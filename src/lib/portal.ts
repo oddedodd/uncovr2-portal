@@ -8,6 +8,7 @@ export interface NavigationItem {
 
 const workspaceNavigation: NavigationItem[] = [
   { label: 'Oversikt', to: '/' },
+  { label: 'Søk', to: '/search', roles: ['superadmin'] },
   { label: 'Labels', to: '/labels', roles: ['superadmin'] },
   {
     label: 'Artister',

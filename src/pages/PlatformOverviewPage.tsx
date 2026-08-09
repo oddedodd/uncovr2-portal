@@ -5,7 +5,6 @@ import {
   getHealthCheck,
   getPlatformOverview,
   platformKeys,
-  summarizePlatform,
 } from '../lib/platform.ts'
 
 function HealthCard({ check }: { check: 'live' | 'ready' }) {
@@ -44,7 +43,7 @@ export function PlatformOverviewPage() {
     queryKey: platformKeys.overview,
     queryFn: getPlatformOverview,
   })
-  const summary = overview.data ? summarizePlatform(overview.data) : null
+  const summary = overview.data
 
   return (
     <>
@@ -77,42 +76,38 @@ export function PlatformOverviewPage() {
       <section className="metric-grid" aria-label="Plattformtall">
         <article className="metric-card">
           <span className="status-kicker">Labels</span>
-          <strong>{summary?.organizations ?? '—'}</strong>
+          <strong>{summary?.organizations.total ?? '—'}</strong>
           <p>
             {summary
-              ? `${summary.suspendedOrganizations} suspendert`
+              ? `${summary.organizations.by_status.suspended ?? 0} suspendert`
               : 'Henter status …'}
           </p>
           <Link to="/labels">Se labels</Link>
         </article>
         <article className="metric-card">
           <span className="status-kicker">Artister</span>
-          <strong>{summary?.artists ?? '—'}</strong>
+          <strong>{summary?.artists.total ?? '—'}</strong>
           <p>
             {summary
-              ? `${summary.suspendedArtists} suspendert`
+              ? `${summary.artists.by_status.suspended ?? 0} suspendert`
               : 'Henter status …'}
           </p>
           <Link to="/artists">Se artister</Link>
         </article>
         <article className="metric-card">
           <span className="status-kicker">Utgivelser</span>
-          <strong>
-            {summary
-              ? `${summary.releases}${summary.releasesHaveMore ? '+' : ''}`
-              : '—'}
-          </strong>
+          <strong>{summary?.releases.total ?? '—'}</strong>
           <p>
             {summary
-              ? `${summary.releasesAwaitingReview} venter på vurdering`
+              ? `${summary.releases.by_status.submitted ?? 0} venter på vurdering`
               : 'Henter status …'}
           </p>
           <Link to="/releases">Se utgivelser</Link>
         </article>
         <article className="metric-card">
           <span className="status-kicker">Publisert</span>
-          <strong>{summary?.publishedReleases ?? '—'}</strong>
-          <p>Synlige utgivelser i første resultatsett.</p>
+          <strong>{summary?.releases.by_status.published ?? '—'}</strong>
+          <p>Publiserte utgivelser på plattformen.</p>
           <Link to="/releases">Åpne utgivelseslisten</Link>
         </article>
       </section>

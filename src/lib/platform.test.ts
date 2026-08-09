@@ -1,34 +1,27 @@
-import { describe, expect, it } from 'vitest'
-import { summarizePlatform, type PlatformOverview } from './platform.ts'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { getPlatformOverview } from './platform.ts'
 
-describe('summarizePlatform', () => {
-  it('summarizes platform resources and review state', () => {
-    const overview: PlatformOverview = {
-      organizations: [
-        { id: 'label-1', status: 'active', profile: { name: 'North' } },
-        { id: 'label-2', status: 'suspended', profile: { name: 'South' } },
-      ],
-      artists: [
-        { id: 'artist-1', status: 'active', profile: { name: 'A' } },
-        { id: 'artist-2', status: 'suspended', profile: { name: 'B' } },
-      ],
-      releases: [
-        { id: 'release-1', status: 'submitted', title: 'First' },
-        { id: 'release-2', status: 'published', title: 'Second' },
-        { id: 'release-3', status: 'draft', title: 'Third' },
-      ],
-      releasesHaveMore: true,
+afterEach(() => vi.restoreAllMocks())
+
+describe('getPlatformOverview', () => {
+  it('uses the protected aggregate endpoint', async () => {
+    const overview = {
+      users: { total: 3, by_status: { active: 3 }, superadmins: 1 },
+      organizations: { total: 2, by_status: { active: 2 } },
+      artists: { total: 1, by_status: { active: 1 } },
+      releases: { total: 4, by_status: { published: 2 } },
     }
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ data: overview }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
 
-    expect(summarizePlatform(overview)).toEqual({
-      organizations: 2,
-      suspendedOrganizations: 1,
-      artists: 2,
-      suspendedArtists: 1,
-      releases: 3,
-      releasesHaveMore: true,
-      releasesAwaitingReview: 1,
-      publishedReleases: 1,
-    })
+    await expect(getPlatformOverview()).resolves.toEqual(overview)
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL('http://localhost:8000/api/v1/platform/overview'),
+      expect.objectContaining({ credentials: 'include' }),
+    )
   })
 })

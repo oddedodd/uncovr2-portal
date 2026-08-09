@@ -5,6 +5,7 @@ import { RequireAuth } from '../components/RequireAuth.tsx'
 import { AccountPage } from '../pages/AccountPage.tsx'
 import { DashboardPage } from '../pages/DashboardPage.tsx'
 import { NotFoundPage } from '../pages/NotFoundPage.tsx'
+import { PlatformSearchPage } from '../pages/PlatformSearchPage.tsx'
 import { WorkspaceSectionPage } from '../pages/WorkspaceSectionPage.tsx'
 import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage.tsx'
 import { LoginPage } from '../pages/auth/LoginPage.tsx'
@@ -37,6 +38,7 @@ export const router = createBrowserRouter([
         element: <PortalLayout />,
         children: [
           { index: true, element: <DashboardPage /> },
+          { path: 'search', element: <PlatformSearchPage /> },
           { path: 'account', element: <AccountPage /> },
           { path: 'labels', element: <WorkspaceSectionPage /> },
           { path: 'artists', element: <WorkspaceSectionPage /> },
