@@ -68,7 +68,7 @@ Portal feature work begins after the backend-to-portal gate for B0 through B6 pa
 
 - [x] `P2.1` Build platform overview and operational status.
 - [x] `P2.2` Build user, organization, artist and release search.
-- [ ] `P2.3` Build organization creation, approval, suspension and correction flows.
+- [x] `P2.3` Build organization creation, approval, suspension and correction flows.
 - [ ] `P2.4` Show user memberships and resource hierarchy.
 - [ ] `P2.5` Build role correction and account suspension with confirmation and audit context.
 - [ ] `P2.6` Verify that superadmin operations use protected Laravel endpoints only.

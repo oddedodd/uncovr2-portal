@@ -3,8 +3,11 @@ import { AuthLayout } from '../components/AuthLayout.tsx'
 import { PortalLayout } from '../components/PortalLayout.tsx'
 import { RequireAuth } from '../components/RequireAuth.tsx'
 import { AccountPage } from '../pages/AccountPage.tsx'
+import { CreateOrganizationPage } from '../pages/CreateOrganizationPage.tsx'
 import { DashboardPage } from '../pages/DashboardPage.tsx'
 import { NotFoundPage } from '../pages/NotFoundPage.tsx'
+import { OrganizationDetailPage } from '../pages/OrganizationDetailPage.tsx'
+import { OrganizationsPage } from '../pages/OrganizationsPage.tsx'
 import { PlatformSearchPage } from '../pages/PlatformSearchPage.tsx'
 import { WorkspaceSectionPage } from '../pages/WorkspaceSectionPage.tsx'
 import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage.tsx'
@@ -40,7 +43,12 @@ export const router = createBrowserRouter([
           { index: true, element: <DashboardPage /> },
           { path: 'search', element: <PlatformSearchPage /> },
           { path: 'account', element: <AccountPage /> },
-          { path: 'labels', element: <WorkspaceSectionPage /> },
+          { path: 'labels', element: <OrganizationsPage /> },
+          { path: 'labels/new', element: <CreateOrganizationPage /> },
+          {
+            path: 'labels/:organizationId',
+            element: <OrganizationDetailPage />,
+          },
           { path: 'artists', element: <WorkspaceSectionPage /> },
           { path: 'releases', element: <WorkspaceSectionPage /> },
           { path: 'team', element: <WorkspaceSectionPage /> },
