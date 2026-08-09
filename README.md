@@ -1,75 +1,48 @@
-# React + TypeScript + Vite
+# Uncovr admin portal
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React- og TypeScript-portalen for plattformteam, labels og artister. Laravel på
+`api.uncovr.no` er eneste backend og autorisasjonsgrense.
 
-Currently, two official plugins are available:
+## Lokal utvikling
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Krav: Node.js 24 og npm.
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+cp .env.example .env.local
+npm ci
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Portalen kjører på `http://localhost:5173` og forventer Laravel på
+`http://localhost:8000`. Bruk `localhost` for begge; ikke bland inn
+`127.0.0.1`, fordi det bryter den cookie-baserte Sanctum-flyten.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Kvalitetskontroll
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm run check
 ```
+
+Kommandoen kontrollerer formatering, lint, enhetstester, TypeScript og
+produksjonsbygget. Den samme kontrollen kjører i GitHub Actions.
+
+## Miljø
+
+`VITE_API_URL` valideres ved oppstart. Standard er `http://localhost:8000` i
+utvikling og `https://api.uncovr.no` i produksjon. Bare offentlige Vite-verdier
+kan ligge i `VITE_*`; hemmeligheter skal aldri legges i portalens miljøfiler.
+
+## API og autentisering
+
+API-klienten sender cookies på alle kall, legger til en UUID i `X-Request-ID`
+og gjør Laravels feilkonvolutt om til `ApiError`. Før innlogging skal klienten
+kalle `initializeCsrf()`, og deretter sende innloggingen til
+`/api/v1/auth/login`. Session-cookien lagres og sendes av nettleseren, ikke av
+React-koden.
+
+## Statisk hosting
+
+Produksjonsbygget genereres med `npm run build` og publiseres fra `dist/` på
+`https://admin.uncovr.no`. `public/_redirects` sørger for at statiske verter som
+støtter dette formatet sender ukjente klientruter til `index.html`. På andre
+verter må den tilsvarende fallback-regelen konfigureres i infrastrukturen.

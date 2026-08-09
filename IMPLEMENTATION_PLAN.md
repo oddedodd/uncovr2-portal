@@ -39,26 +39,26 @@ Portal feature work begins after the backend-to-portal gate for B0 through B6 pa
 ## P0 — Portal foundation
 
 - [x] `P0.1` Use a separate sibling Git repository named `uncover-portal`.
-- [ ] `P0.2` Scaffold current stable React and TypeScript with Vite and pin dependencies.
-- [ ] `P0.3` Add React Router in Data Mode and TanStack Query without introducing a frontend server layer.
-- [ ] `P0.4` Add formatting, linting, unit tests and CI.
-- [ ] `P0.5` Validate environment variables and configure the Laravel API base URL as
-  `http://localhost:8000` locally and `https://api.uncovr.no` in production.
-- [ ] `P0.6` Build a typed API client with credentialed requests, CSRF support,
-  consistent API errors and request IDs.
-- [ ] `P0.7` Configure local development on `http://localhost:5173` and document
-  that portal and API must use the same `localhost` hostname.
-- [ ] `P0.8` Configure static SPA hosting at `https://admin.uncovr.no`, including
-  history fallback so direct navigation to client routes serves `index.html`.
+- [x] `P0.2` Scaffold current stable React and TypeScript with Vite and pin dependencies.
+- [x] `P0.3` Add React Router in Data Mode and TanStack Query without introducing a frontend server layer.
+- [x] `P0.4` Add formatting, linting, unit tests and CI.
+- [x] `P0.5` Validate environment variables and configure the Laravel API base URL as
+      `http://localhost:8000` locally and `https://api.uncovr.no` in production.
+- [x] `P0.6` Build a typed API client with credentialed requests, CSRF support,
+      consistent API errors and request IDs.
+- [x] `P0.7` Configure local development on `http://localhost:5173` and document
+      that portal and API must use the same `localhost` hostname.
+- [x] `P0.8` Configure static SPA hosting at `https://admin.uncovr.no`, including
+      history fallback so direct navigation to client routes serves `index.html`.
 - [ ] `P0.9` Align Laravel CORS, Sanctum stateful domains and session-cookie settings
-  with the exact local and production portal origins.
-- [ ] `P0.10` Establish accessible layout, forms, feedback and responsive breakpoints.
+      with the exact local and production portal origins.
+- [x] `P0.10` Establish accessible layout, forms, feedback and responsive breakpoints.
 
 ## P1 — Authentication and role-aware shell
 
 - [ ] `P1.1` Build registration, login, verification and password-reset screens.
 - [ ] `P1.2` Initialize CSRF through `/sanctum/csrf-cookie`, authenticate with
-  Laravel's secure HTTP-only session cookie and send credentials on every API request.
+      Laravel's secure HTTP-only session cookie and send credentials on every API request.
 - [ ] `P1.3` Build account, active-session and logout screens.
 - [ ] `P1.4` Load the current user's memberships and available workspaces.
 - [ ] `P1.5` Build role-aware navigation without treating hidden UI as authorization.
