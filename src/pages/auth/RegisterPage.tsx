@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { Form, Link, useNavigate } from 'react-router'
+import { Form, Link, useLocation, useNavigate } from 'react-router'
 import { AuthCard } from '../../components/AuthCard.tsx'
 import { FeedbackBanner } from '../../components/FeedbackBanner.tsx'
 import { FormField } from '../../components/FormField.tsx'
@@ -9,9 +9,15 @@ import { register, type RegisterInput } from '../../lib/auth.ts'
 
 export function RegisterPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const returnTo = (location.state as { returnTo?: string } | null)?.returnTo
   const mutation = useMutation({
     mutationFn: register,
-    onSuccess: () => navigate('/login?registered=1', { replace: true }),
+    onSuccess: () =>
+      navigate('/login?registered=1', {
+        replace: true,
+        state: { returnTo },
+      }),
   })
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -38,7 +44,10 @@ export function RegisterPage() {
       description="Registrer en personlig konto. Tilganger gis separat av Uncovr eller teamet ditt."
       footer={
         <p>
-          Har du allerede konto? <Link to="/login">Logg inn</Link>
+          Har du allerede konto?{' '}
+          <Link state={{ returnTo }} to="/login">
+            Logg inn
+          </Link>
         </p>
       }
     >

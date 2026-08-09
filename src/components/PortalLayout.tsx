@@ -34,7 +34,7 @@ export function PortalLayout() {
       </a>
       <header className="portal-header">
         <NavLink className="brand" to="/" aria-label="Uncovr admin, forsiden">
-          uncovr<span>.</span>
+          <img alt="" className="brand-logo" src="/uncovr-logo.png" />
         </NavLink>
         <div className="header-actions">
           <span className="environment-badge">

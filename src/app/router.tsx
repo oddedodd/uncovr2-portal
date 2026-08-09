@@ -2,13 +2,16 @@ import { createBrowserRouter } from 'react-router'
 import { AuthLayout } from '../components/AuthLayout.tsx'
 import { PortalLayout } from '../components/PortalLayout.tsx'
 import { RequireAuth } from '../components/RequireAuth.tsx'
+import { RequireSuperadmin } from '../components/RequireSuperadmin.tsx'
 import { AccountPage } from '../pages/AccountPage.tsx'
+import { AcceptOrganizationInvitationPage } from '../pages/AcceptOrganizationInvitationPage.tsx'
 import { CreateOrganizationPage } from '../pages/CreateOrganizationPage.tsx'
 import { DashboardPage } from '../pages/DashboardPage.tsx'
 import { NotFoundPage } from '../pages/NotFoundPage.tsx'
 import { OrganizationDetailPage } from '../pages/OrganizationDetailPage.tsx'
 import { OrganizationsPage } from '../pages/OrganizationsPage.tsx'
 import { PlatformSearchPage } from '../pages/PlatformSearchPage.tsx'
+import { PlatformUserPage } from '../pages/PlatformUserPage.tsx'
 import { WorkspaceSectionPage } from '../pages/WorkspaceSectionPage.tsx'
 import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage.tsx'
 import { LoginPage } from '../pages/auth/LoginPage.tsx'
@@ -41,13 +44,50 @@ export const router = createBrowserRouter([
         element: <PortalLayout />,
         children: [
           { index: true, element: <DashboardPage /> },
-          { path: 'search', element: <PlatformSearchPage /> },
+          {
+            path: 'search',
+            element: (
+              <RequireSuperadmin>
+                <PlatformSearchPage />
+              </RequireSuperadmin>
+            ),
+          },
+          {
+            path: 'users/:userId',
+            element: (
+              <RequireSuperadmin>
+                <PlatformUserPage />
+              </RequireSuperadmin>
+            ),
+          },
           { path: 'account', element: <AccountPage /> },
-          { path: 'labels', element: <OrganizationsPage /> },
-          { path: 'labels/new', element: <CreateOrganizationPage /> },
+          {
+            path: 'invitations/accept',
+            element: <AcceptOrganizationInvitationPage />,
+          },
+          {
+            path: 'labels',
+            element: (
+              <RequireSuperadmin>
+                <OrganizationsPage />
+              </RequireSuperadmin>
+            ),
+          },
+          {
+            path: 'labels/new',
+            element: (
+              <RequireSuperadmin>
+                <CreateOrganizationPage />
+              </RequireSuperadmin>
+            ),
+          },
           {
             path: 'labels/:organizationId',
-            element: <OrganizationDetailPage />,
+            element: (
+              <RequireSuperadmin>
+                <OrganizationDetailPage />
+              </RequireSuperadmin>
+            ),
           },
           { path: 'artists', element: <WorkspaceSectionPage /> },
           { path: 'releases', element: <WorkspaceSectionPage /> },

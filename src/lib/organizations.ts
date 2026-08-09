@@ -30,6 +30,16 @@ export interface OrganizationPage {
   pagination: CursorPagination
 }
 
+export interface OrganizationInvitation {
+  id: string
+  organization_id: string
+  email: string
+  role: 'label_admin' | 'label_user'
+  expires_at: string
+  last_sent_at: string
+  send_count: number
+}
+
 export const organizationKeys = {
   all: ['organizations'] as const,
   list: (after?: string, before?: string) =>
@@ -95,4 +105,28 @@ export function updateOrganizationStatus(
       body: JSON.stringify({ status }),
     },
   ).then((response) => response.data)
+}
+
+export function inviteOrganizationAdministrator(
+  organizationId: string,
+  email: string,
+) {
+  return apiRequest<OrganizationInvitation>(
+    `/api/v1/organizations/${organizationId}/invitations`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ email, role: 'label_admin' }),
+    },
+  ).then((response) => response.data)
+}
+
+export function acceptOrganizationInvitation(token: string) {
+  return apiRequest<{
+    membership_id: string
+    organization_id: string
+    role: 'label_admin' | 'label_user'
+  }>('/api/v1/organization-invitations/accept', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  }).then((response) => response.data)
 }

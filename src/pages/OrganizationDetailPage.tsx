@@ -8,6 +8,7 @@ import { fieldError, formError } from '../features/auth/validation.ts'
 import { organizationInput } from '../lib/organizationForm.ts'
 import {
   getOrganization,
+  inviteOrganizationAdministrator,
   organizationKeys,
   updateOrganization,
   updateOrganizationStatus,
@@ -102,10 +103,20 @@ export function OrganizationDetailPage() {
       ])
     },
   })
+  const invitation = useMutation({
+    mutationFn: (email: string) =>
+      inviteOrganizationAdministrator(organizationId, email),
+  })
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     update.mutate(organizationInput(new FormData(event.currentTarget)))
+  }
+
+  function handleInvitationSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    invitation.mutate(String(data.get('email') ?? '').trim())
   }
 
   if (organization.isPending) {
@@ -180,6 +191,56 @@ export function OrganizationDetailPage() {
           <SubmitButton pending={update.isPending} pendingLabel="Lagrer …">
             Lagre korrigeringer
           </SubmitButton>
+        </Form>
+      </section>
+
+      <section className="settings-card" aria-labelledby="first-admin-heading">
+        <div className="settings-card__heading">
+          <h2 id="first-admin-heading">Inviter labeladministrator</h2>
+          <p>
+            Mottakeren får en tidsbegrenset e-postlenke og blir Label Admin når
+            invitasjonen godtas.
+          </p>
+        </div>
+        {invitation.isSuccess ? (
+          <FeedbackBanner title="Invitasjonen er sendt" tone="success">
+            {invitation.data.email} kan godta invitasjonen frem til{' '}
+            {new Intl.DateTimeFormat('nb-NO', {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+            }).format(new Date(invitation.data.expires_at))}
+            .
+          </FeedbackBanner>
+        ) : null}
+        {invitation.isError ? (
+          <FeedbackBanner title="Kunne ikke sende invitasjonen" tone="error">
+            {formError(invitation.error)}
+          </FeedbackBanner>
+        ) : null}
+        <Form
+          className="form-stack"
+          method="post"
+          onSubmit={handleInvitationSubmit}
+        >
+          <div className="form-field">
+            <label htmlFor="administrator-email">Administratorens e-post</label>
+            <input
+              autoComplete="email"
+              id="administrator-email"
+              name="email"
+              required
+              type="email"
+            />
+          </div>
+          <button
+            className="button button--primary"
+            disabled={invitation.isPending}
+            type="submit"
+          >
+            {invitation.isPending
+              ? 'Sender invitasjon …'
+              : 'Inviter som Label Admin'}
+          </button>
         </Form>
       </section>
 

@@ -22,6 +22,13 @@ export function SessionExpiredPage() {
       >
         Gå til innlogging
       </Link>
+      <Link
+        className="button button--secondary button--full"
+        state={{ returnTo }}
+        to="/register"
+      >
+        Opprett konto for invitasjonen
+      </Link>
     </AuthCard>
   )
 }

@@ -33,6 +33,8 @@
 }
 
 .brand {
+  display: inline-flex;
+  align-items: center;
   color: var(--text-strong);
   font-size: 1.25rem;
   font-weight: 760;
@@ -40,8 +42,10 @@
   text-decoration: none;
 }
 
-.brand span {
-  color: var(--accent);
+.brand-logo {
+  display: block;
+  width: 4.35rem;
+  height: auto;
 }
 
 .header-actions,
@@ -519,80 +523,41 @@
 .auth-page {
   min-height: 100svh;
   color: var(--text);
-  background: var(--text-strong);
-}
-
-.auth-header {
-  display: flex;
-  min-height: 4.5rem;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 2rem;
-  color: #bcb6ae;
-  font-size: 0.78rem;
-  font-weight: 750;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.auth-header .brand {
-  color: var(--text-inverse);
-  font-size: 1.35rem;
-  text-transform: none;
+  background: var(--surface);
 }
 
 .auth-main {
   display: grid;
-  grid-template-columns: minmax(18rem, 0.8fr) minmax(26rem, 1.2fr);
-  min-height: calc(100svh - 4.5rem);
+  min-height: 100svh;
+  place-items: center;
+  padding: clamp(1.5rem, 5vw, 4rem) 1rem;
 }
 
-.auth-intro,
-.auth-panel {
+.auth-shell {
   display: grid;
-  align-content: center;
-  padding: clamp(2rem, 7vw, 7rem);
+  width: min(100%, 28rem);
+  gap: clamp(1.75rem, 5vw, 2.75rem);
 }
 
-.auth-intro {
-  color: var(--text-inverse);
+.auth-logo-link {
+  justify-self: center;
 }
 
-.auth-intro .eyebrow {
-  color: #ff7a54;
-}
-
-.auth-intro h1 {
-  max-width: 9ch;
-  margin: 0;
-  font-size: clamp(3rem, 7vw, 6.5rem);
-  line-height: 0.92;
-  letter-spacing: -0.07em;
-}
-
-.auth-intro > p:last-child {
-  max-width: 30rem;
-  margin: 1.5rem 0 0;
-  color: #bcb6ae;
-  font-size: 1.05rem;
-  line-height: 1.65;
-}
-
-.auth-panel {
-  border-radius: 1.25rem 0 0;
-  background: var(--surface-subtle);
+.auth-logo {
+  display: block;
+  width: clamp(8rem, 35vw, 10rem);
+  height: auto;
 }
 
 .auth-card {
   display: grid;
-  width: min(100%, 32rem);
+  width: 100%;
   gap: 1.25rem;
-  margin: auto;
-  padding: clamp(1.5rem, 4vw, 2.5rem);
-  border: 1px solid var(--border);
-  border-radius: 1rem;
-  background: var(--surface);
-  box-shadow: var(--shadow-lg);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .auth-card__heading h2 {
@@ -1078,6 +1043,242 @@
   margin-top: 0.5rem;
 }
 
+.search-result-card h3 a {
+  color: var(--accent-strong);
+}
+
+.user-hierarchy-page {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.user-hierarchy-page > div:first-child {
+  margin-bottom: 1rem;
+}
+
+.user-fact-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.user-fact-grid article {
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.user-fact-grid strong {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--text-strong);
+  font-size: 1.05rem;
+}
+
+.user-fact-grid p {
+  margin: 0.55rem 0 0;
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.user-hierarchy-section {
+  margin-top: 2rem;
+}
+
+.user-hierarchy-section .inline-empty {
+  margin-top: 1.5rem;
+}
+
+.hierarchy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.hierarchy-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.hierarchy-card > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.hierarchy-card h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 1.05rem;
+}
+
+.hierarchy-card h3 a {
+  color: var(--accent-strong);
+}
+
+.hierarchy-card header p {
+  margin: 0.35rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.hierarchy-card__statuses {
+  display: grid;
+  justify-items: end;
+  gap: 0.4rem;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+.hierarchy-related {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.hierarchy-related:last-child {
+  border-bottom: 0;
+}
+
+.hierarchy-related h4 {
+  margin: 0 0 0.75rem;
+  color: var(--text-strong);
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.hierarchy-related > ul,
+.hierarchy-release-list {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hierarchy-related > ul > li,
+.hierarchy-release-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.65rem;
+  border-radius: 0.55rem;
+  background: var(--surface-subtle);
+}
+
+.hierarchy-related > ul > li strong,
+.hierarchy-release-list strong {
+  overflow-wrap: anywhere;
+  color: var(--text-strong);
+  font-size: 0.8rem;
+}
+
+.hierarchy-related > ul > li > span:not(.status-pill),
+.hierarchy-release-list span {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+.hierarchy-release-list li > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.hierarchy-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.text-button {
+  margin-top: 0.6rem;
+  padding: 0;
+  border: 0;
+  color: var(--accent-strong);
+  background: transparent;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 750;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.form-field select {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.55rem;
+  color: var(--text-strong);
+  background: var(--surface);
+  font: inherit;
+}
+
+.admin-action-panel {
+  display: grid;
+  gap: 1.25rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid var(--accent);
+  border-radius: 0.85rem;
+  background: var(--accent-soft);
+}
+
+.admin-action-panel--danger {
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
+}
+
+.admin-action-panel h2 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 1.2rem;
+}
+
+.admin-action-panel > div:first-child > p:last-child {
+  max-width: 46rem;
+  margin: 0.5rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.admin-action-panel code {
+  overflow-wrap: anywhere;
+}
+
+.invitation-page {
+  display: grid;
+  max-width: 46rem;
+  gap: 1.25rem;
+}
+
+.invitation-page .feedback-banner {
+  margin-top: 1rem;
+}
+
+.invitation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
 .search-section__heading {
   justify-content: space-between;
   gap: 1rem;
@@ -1239,30 +1440,8 @@
     border: 0;
   }
 
-  .auth-header {
-    padding: 0 1rem;
-  }
-
-  .auth-main {
-    grid-template-columns: 1fr;
-  }
-
-  .auth-intro {
-    min-height: 16rem;
-    padding: 3rem 1.25rem;
-  }
-
-  .auth-intro h1 {
-    font-size: clamp(3rem, 15vw, 4.5rem);
-  }
-
-  .auth-panel {
-    padding: 1rem;
-    border-radius: 1rem 1rem 0 0;
-  }
-
   .auth-card {
-    padding: 1.25rem;
+    padding: 0;
   }
 
   .settings-card__heading--row,
@@ -1317,6 +1496,27 @@
   .resource-form-actions .button,
   .confirmation-panel__actions .button {
     width: 100%;
+  }
+
+  .user-fact-grid,
+  .hierarchy-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hierarchy-card > header,
+  .hierarchy-related > ul > li,
+  .hierarchy-release-list li {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .hierarchy-card__statuses {
+    justify-items: start;
+  }
+
+  .invitation-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 

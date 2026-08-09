@@ -1,6 +1,6 @@
 import { useQueries } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { FeedbackBanner } from '../components/FeedbackBanner.tsx'
 import {
   platformSearchKeys,
@@ -40,7 +40,11 @@ function UserResult({ result }: { result: PlatformUserResult }) {
   return (
     <article className="search-result-card">
       <div>
-        <h3>{result.display_name ?? result.email}</h3>
+        <h3>
+          <Link to={`/users/${result.id}`}>
+            {result.display_name ?? result.email}
+          </Link>
+        </h3>
         <p>{result.email}</p>
       </div>
       <div className="search-result-card__meta">
