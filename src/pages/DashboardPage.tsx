@@ -1,6 +1,7 @@
 import { Link, useOutletContext } from 'react-router'
 import { FeedbackBanner } from '../components/FeedbackBanner.tsx'
 import { roleLabel, type PortalOutletContext } from '../lib/portal.ts'
+import { PlatformOverviewPage } from './PlatformOverviewPage.tsx'
 
 export function DashboardPage() {
   const { user, workspace } = useOutletContext<PortalOutletContext>()
@@ -29,6 +30,10 @@ export function DashboardPage() {
         </Link>
       </section>
     )
+  }
+
+  if (workspace.type === 'platform' && workspace.role === 'superadmin') {
+    return <PlatformOverviewPage />
   }
 
   return (
