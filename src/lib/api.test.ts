@@ -63,4 +63,17 @@ describe('apiRequest', () => {
       requestId: '7dc95ecf-9c3c-4ff0-806f-6c661f4e7834',
     })
   })
+
+  it('returns a stable network error when the API cannot be reached', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockRejectedValue(new TypeError('Failed to fetch')),
+    )
+
+    await expect(apiRequest('/api/v1/me')).rejects.toMatchObject({
+      status: 0,
+      code: 'network_error',
+      message: 'Kunne ikke kontakte Uncovr API-et.',
+    })
+  })
 })

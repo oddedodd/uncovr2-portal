@@ -24,8 +24,13 @@
   --accent-strong: #a62d14;
   --accent-soft: #fbe5dc;
   --success: #23865e;
+  --success-strong: #156143;
+  --success-soft: #dff3ea;
   --danger: #b42318;
+  --danger-soft: #fee4e2;
+  --danger-border: #f4aaa4;
   --shadow-sm: 0 1px 2px rgb(17 16 15 / 5%);
+  --shadow-lg: 0 24px 70px rgb(0 0 0 / 22%);
 }
 
 * {

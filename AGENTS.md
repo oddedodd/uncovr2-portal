@@ -34,8 +34,8 @@
 - Never run `npm run build` during development. If a production build is
   necessary, stop and ask the user to run it manually.
 - Do not run another command that invokes the build indirectly. In the current
-  package configuration this includes `npm run check`, because that script ends
-  by running `npm run build`.
+  package configuration `npm run check` is safe: it runs formatting, lint,
+  TypeScript type checking and tests without producing a production build.
 - Add or update tests for changed behavior and fix relevant failures before
   handing work back.
 

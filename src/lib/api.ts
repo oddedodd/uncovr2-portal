@@ -81,11 +81,22 @@ export async function apiRequest<T>(
   init: RequestInit = {},
 ): Promise<ApiSuccess<T>> {
   const requestId = crypto.randomUUID()
-  const response = await fetch(new URL(path, env.VITE_API_URL), {
-    ...init,
-    credentials: 'include',
-    headers: requestHeaders(init, requestId),
-  })
+  let response: Response
+
+  try {
+    response = await fetch(new URL(path, env.VITE_API_URL), {
+      ...init,
+      credentials: 'include',
+      headers: requestHeaders(init, requestId),
+    })
+  } catch {
+    throw new ApiError(
+      0,
+      'network_error',
+      'Kunne ikke kontakte Uncovr API-et.',
+      requestId,
+    )
+  }
   const body = await parseBody(response)
   const responseRequestId = response.headers.get('X-Request-ID') ?? requestId
 

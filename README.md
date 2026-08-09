@@ -23,8 +23,8 @@ Portalen kjører på `http://localhost:5173` og forventer Laravel på
 npm run check
 ```
 
-Kommandoen kontrollerer formatering, lint, enhetstester, TypeScript og
-produksjonsbygget. Den samme kontrollen kjører i GitHub Actions.
+Kommandoen kontrollerer formatering, lint, TypeScript og enhetstester uten å
+lage et produksjonsbygg. Den samme kontrollen kjører i GitHub Actions.
 
 ## Miljø
 

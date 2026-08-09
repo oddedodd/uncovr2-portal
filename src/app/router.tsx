@@ -1,15 +1,51 @@
 import { createBrowserRouter } from 'react-router'
+import { AuthLayout } from '../components/AuthLayout.tsx'
 import { PortalLayout } from '../components/PortalLayout.tsx'
+import { RequireAuth } from '../components/RequireAuth.tsx'
+import { AccountPage } from '../pages/AccountPage.tsx'
 import { DashboardPage } from '../pages/DashboardPage.tsx'
 import { NotFoundPage } from '../pages/NotFoundPage.tsx'
+import { WorkspaceSectionPage } from '../pages/WorkspaceSectionPage.tsx'
+import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage.tsx'
+import { LoginPage } from '../pages/auth/LoginPage.tsx'
+import { RegisterPage } from '../pages/auth/RegisterPage.tsx'
+import { ResetPasswordPage } from '../pages/auth/ResetPasswordPage.tsx'
+import { SessionExpiredPage } from '../pages/auth/SessionExpiredPage.tsx'
+import { VerifyEmailPage } from '../pages/auth/VerifyEmailPage.tsx'
+import { ForbiddenPage } from '../pages/states/ForbiddenPage.tsx'
+import { RouteErrorPage } from '../pages/states/RouteErrorPage.tsx'
 
 export const router = createBrowserRouter([
   {
-    path: '/',
-    element: <PortalLayout />,
+    element: <AuthLayout />,
+    errorElement: <RouteErrorPage />,
     children: [
-      { index: true, element: <DashboardPage /> },
-      { path: '*', element: <NotFoundPage /> },
+      { path: '/login', element: <LoginPage /> },
+      { path: '/register', element: <RegisterPage /> },
+      { path: '/verify-email', element: <VerifyEmailPage /> },
+      { path: '/forgot-password', element: <ForgotPasswordPage /> },
+      { path: '/reset-password', element: <ResetPasswordPage /> },
+      { path: '/session-expired', element: <SessionExpiredPage /> },
     ],
   },
+  {
+    element: <RequireAuth />,
+    errorElement: <RouteErrorPage />,
+    children: [
+      {
+        path: '/',
+        element: <PortalLayout />,
+        children: [
+          { index: true, element: <DashboardPage /> },
+          { path: 'account', element: <AccountPage /> },
+          { path: 'labels', element: <WorkspaceSectionPage /> },
+          { path: 'artists', element: <WorkspaceSectionPage /> },
+          { path: 'releases', element: <WorkspaceSectionPage /> },
+          { path: 'team', element: <WorkspaceSectionPage /> },
+          { path: 'forbidden', element: <ForbiddenPage /> },
+        ],
+      },
+    ],
+  },
+  { path: '*', element: <NotFoundPage />, errorElement: <RouteErrorPage /> },
 ])

@@ -50,19 +50,19 @@ Portal feature work begins after the backend-to-portal gate for B0 through B6 pa
       that portal and API must use the same `localhost` hostname.
 - [x] `P0.8` Configure static SPA hosting at `https://admin.uncovr.no`, including
       history fallback so direct navigation to client routes serves `index.html`.
-- [ ] `P0.9` Align Laravel CORS, Sanctum stateful domains and session-cookie settings
+- [x] `P0.9` Align Laravel CORS, Sanctum stateful domains and session-cookie settings
       with the exact local and production portal origins.
 - [x] `P0.10` Establish accessible layout, forms, feedback and responsive breakpoints.
 
 ## P1 — Authentication and role-aware shell
 
-- [ ] `P1.1` Build registration, login, verification and password-reset screens.
-- [ ] `P1.2` Initialize CSRF through `/sanctum/csrf-cookie`, authenticate with
+- [x] `P1.1` Build registration, login, verification and password-reset screens.
+- [x] `P1.2` Initialize CSRF through `/sanctum/csrf-cookie`, authenticate with
       Laravel's secure HTTP-only session cookie and send credentials on every API request.
-- [ ] `P1.3` Build account, active-session and logout screens.
-- [ ] `P1.4` Load the current user's memberships and available workspaces.
-- [ ] `P1.5` Build role-aware navigation without treating hidden UI as authorization.
-- [ ] `P1.6` Add forbidden, expired-session, empty and error states.
+- [x] `P1.3` Build account, active-session and logout screens.
+- [x] `P1.4` Load the current user's memberships and available workspaces.
+- [x] `P1.5` Build role-aware navigation without treating hidden UI as authorization.
+- [x] `P1.6` Add forbidden, expired-session, empty and error states.
 
 ## P2 — Superadmin workflow
 
