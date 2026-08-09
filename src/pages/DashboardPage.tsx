@@ -2,6 +2,7 @@ import { Link, useOutletContext } from 'react-router'
 import { FeedbackBanner } from '../components/FeedbackBanner.tsx'
 import { roleLabel, type PortalOutletContext } from '../lib/portal.ts'
 import { PlatformOverviewPage } from './PlatformOverviewPage.tsx'
+import { LabelDashboardPage } from './LabelDashboardPage.tsx'
 
 export function DashboardPage() {
   const { user, workspace } = useOutletContext<PortalOutletContext>()
@@ -36,6 +37,10 @@ export function DashboardPage() {
     return <PlatformOverviewPage />
   }
 
+  if (workspace.type === 'organization') {
+    return <LabelDashboardPage workspace={workspace} />
+  }
+
   return (
     <>
       <p className="eyebrow">{roleLabel(workspace.role)}</p>
@@ -50,13 +55,7 @@ export function DashboardPage() {
         <article className="status-card">
           <span className="status-kicker">Arbeidsområde</span>
           <h2>{workspace.name}</h2>
-          <p>
-            {workspace.type === 'platform'
-              ? 'Plattform'
-              : workspace.type === 'organization'
-                ? 'Label'
-                : 'Artist'}
-          </p>
+          <p>{workspace.type === 'platform' ? 'Plattform' : 'Artist'}</p>
         </article>
         <article className="status-card">
           <span className="status-kicker">Rolle</span>

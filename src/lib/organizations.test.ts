@@ -3,6 +3,7 @@ import {
   acceptOrganizationInvitation,
   createOrganization,
   inviteOrganizationAdministrator,
+  onboardOrganization,
   updateOrganization,
   updateOrganizationStatus,
 } from './organizations.ts'
@@ -79,6 +80,45 @@ describe('organization administration API', () => {
 })
 
 describe('organization administrator invitation API', () => {
+  it('creates the label and first Label Admin invitation atomically', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            data: {
+              organization,
+              administrator_invitation: {
+                id: 'invitation-1',
+                email: 'admin@example.com',
+                role: 'label_admin',
+                expires_at: '2026-08-10T10:00:00.000Z',
+              },
+            },
+          }),
+          {
+            status: 201,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      ),
+    )
+    const onboarding = {
+      organization: input,
+      administrator: { email: 'admin@example.com' },
+      confirmation: true as const,
+    }
+
+    await onboardOrganization(onboarding)
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL('http://localhost:8000/api/v1/platform/organization-onboardings'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify(onboarding),
+      }),
+    )
+  })
+
   it('invites a label admin and accepts the invitation through Laravel', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
       Promise.resolve(

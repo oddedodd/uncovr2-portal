@@ -590,6 +590,48 @@
   color: var(--text-inverse);
 }
 
+.auth-card a.button--secondary {
+  color: var(--text-strong);
+}
+
+.invitation-choice {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.invitation-choice > div {
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  background: var(--surface-subtle);
+}
+
+.invitation-choice h3,
+.invitation-choice p,
+.invitation-role-note {
+  margin: 0;
+}
+
+.invitation-choice h3 {
+  color: var(--text-strong);
+  font-size: 1rem;
+}
+
+.invitation-choice p,
+.invitation-role-note {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.invitation-role-note {
+  padding-top: 0.25rem;
+}
+
 .form-stack {
   display: grid;
   gap: 1rem;
@@ -980,6 +1022,12 @@
   width: auto;
 }
 
+.form-divider {
+  height: 1px;
+  margin: 0.4rem 0;
+  background: var(--border);
+}
+
 .form-field textarea {
   width: 100%;
   min-height: 8rem;
@@ -1279,6 +1327,110 @@
   margin-top: 0.5rem;
 }
 
+.label-dashboard {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.label-dashboard > div:first-child {
+  margin-bottom: 0.5rem;
+}
+
+.label-dashboard > .settings-card {
+  max-width: 50rem;
+  margin-top: 1rem;
+}
+
+.profile-details {
+  display: grid;
+  gap: 0.85rem;
+  margin: 0;
+}
+
+.profile-details > div {
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.35fr) 1fr;
+  gap: 1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.profile-details > div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.profile-details dt {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
+.profile-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-strong);
+}
+
+.team-page {
+  display: grid;
+  max-width: 62rem;
+  gap: 1.5rem;
+}
+
+.team-invite-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(10rem, 0.35fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.team-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.team-list > li {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) minmax(9rem, auto) auto auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.team-list > li:last-child {
+  border-bottom: 0;
+}
+
+.team-list select {
+  min-height: 2.4rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.5rem;
+  background: var(--surface);
+}
+
+.team-member-identity {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.team-member-identity span {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+}
+
+.team-member-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
 .search-section__heading {
   justify-content: space-between;
   gap: 1rem;
@@ -1444,6 +1596,10 @@
     padding: 0;
   }
 
+  .invitation-choice {
+    grid-template-columns: 1fr;
+  }
+
   .settings-card__heading--row,
   .session-list li {
     align-items: stretch;
@@ -1516,6 +1672,21 @@
 
   .invitation-actions {
     align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profile-details > div {
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+  }
+
+  .team-invite-form,
+  .team-list > li {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .team-member-actions {
     flex-direction: column;
   }
 }

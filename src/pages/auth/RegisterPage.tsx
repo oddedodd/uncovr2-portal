@@ -6,18 +6,25 @@ import { FormField } from '../../components/FormField.tsx'
 import { SubmitButton } from '../../components/SubmitButton.tsx'
 import { fieldError, formError } from '../../features/auth/validation.ts'
 import { register, type RegisterInput } from '../../lib/auth.ts'
+import { authRoute, readInvitationReturnTo } from '../../lib/authNavigation.ts'
 
 export function RegisterPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const returnTo = (location.state as { returnTo?: string } | null)?.returnTo
+  const returnTo = readInvitationReturnTo(location.search, location.state)
+  const invitation = Boolean(returnTo)
   const mutation = useMutation({
     mutationFn: register,
-    onSuccess: () =>
-      navigate('/login?registered=1', {
-        replace: true,
-        state: { returnTo },
-      }),
+    onSuccess: (_result, input) =>
+      navigate(
+        authRoute('/verify-email', returnTo, {
+          email: input.email,
+          registered: '1',
+        }),
+        {
+          replace: true,
+        },
+      ),
   })
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -40,17 +47,25 @@ export function RegisterPage() {
 
   return (
     <AuthCard
-      title="Opprett konto"
-      description="Registrer en personlig konto. Tilganger gis separat av Uncovr eller teamet ditt."
+      title={invitation ? 'Opprett konto for invitasjonen' : 'Opprett konto'}
+      description={
+        invitation
+          ? 'Bruk nøyaktig samme e-postadresse som invitasjonen ble sendt til, og velg ditt eget passord.'
+          : 'Registrer en personlig konto. Tilganger gis separat av Uncovr eller teamet ditt.'
+      }
       footer={
         <p>
           Har du allerede konto?{' '}
-          <Link state={{ returnTo }} to="/login">
-            Logg inn
-          </Link>
+          <Link to={authRoute('/login', returnTo)}>Logg inn</Link>
         </p>
       }
     >
+      {invitation ? (
+        <FeedbackBanner title="Invitasjonen følger registreringen" tone="info">
+          Når e-postadressen er bekreftet og du har logget inn, sendes du
+          tilbake for å godta rollen.
+        </FeedbackBanner>
+      ) : null}
       {mutation.isError ? (
         <FeedbackBanner title="Kontroller opplysningene" tone="error">
           {formError(mutation.error)}

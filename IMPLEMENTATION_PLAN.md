@@ -79,10 +79,10 @@ Portal feature work begins after the backend-to-portal gate for B0 through B6 pa
 
 ## P3 — Label workflow
 
-- [ ] `P3.1` Build label dashboard and profile editor.
-- [ ] `P3.2` Build team listing, invitations, role changes and removals.
-- [ ] `P3.3` Build artist listing and artist creation.
-- [ ] `P3.4` Assign an Artist Admin during artist onboarding.
+- [x] `P3.1` Build label dashboard and profile editor.
+- [x] `P3.2` Build team listing, invitations, role changes and removals.
+- [x] `P3.3` Build artist listing and artist creation.
+- [x] `P3.4` Assign an Artist Admin during artist onboarding.
 - [ ] `P3.5` Show all permitted releases across label artists.
 - [ ] `P3.6` Verify Label User restrictions for owned and assigned work.
 

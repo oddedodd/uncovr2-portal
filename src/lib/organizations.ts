@@ -40,6 +40,20 @@ export interface OrganizationInvitation {
   send_count: number
 }
 
+export interface OrganizationOnboardingInput {
+  organization: OrganizationInput
+  administrator: { email: string }
+  confirmation: true
+}
+
+export interface OrganizationOnboardingResult {
+  organization: Organization
+  administrator_invitation: Pick<
+    OrganizationInvitation,
+    'id' | 'email' | 'role' | 'expires_at'
+  >
+}
+
 export const organizationKeys = {
   all: ['organizations'] as const,
   list: (after?: string, before?: string) =>
@@ -82,6 +96,16 @@ export function createOrganization(input: OrganizationInput) {
     method: 'POST',
     body: JSON.stringify(input),
   }).then((response) => response.data)
+}
+
+export function onboardOrganization(input: OrganizationOnboardingInput) {
+  return apiRequest<OrganizationOnboardingResult>(
+    '/api/v1/platform/organization-onboardings',
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
+  ).then((response) => response.data)
 }
 
 export function updateOrganization(

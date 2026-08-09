@@ -1,20 +1,32 @@
 import { useMutation } from '@tanstack/react-query'
-import { Form, Link, useNavigate, useSearchParams } from 'react-router'
+import {
+  Form,
+  Link,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from 'react-router'
 import { AuthCard } from '../../components/AuthCard.tsx'
 import { FeedbackBanner } from '../../components/FeedbackBanner.tsx'
 import { FormField } from '../../components/FormField.tsx'
 import { SubmitButton } from '../../components/SubmitButton.tsx'
 import { fieldError, formError } from '../../features/auth/validation.ts'
 import { resetPassword } from '../../lib/auth.ts'
+import { authRoute, readInvitationReturnTo } from '../../lib/authNavigation.ts'
 
 export function ResetPasswordPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
+  const returnTo = readInvitationReturnTo(location.search, location.state)
   const token = searchParams.get('token') ?? ''
   const email = searchParams.get('email') ?? ''
   const mutation = useMutation({
     mutationFn: resetPassword,
-    onSuccess: () => navigate('/login?reset=1', { replace: true }),
+    onSuccess: () =>
+      navigate(authRoute('/login', returnTo, { reset: '1' }), {
+        replace: true,
+      }),
   })
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -46,7 +58,9 @@ export function ResetPasswordPage() {
     <AuthCard
       title="Velg nytt passord"
       description="Det nye passordet logger ut alle eksisterende enheter."
-      footer={<Link to="/login">Tilbake til innlogging</Link>}
+      footer={
+        <Link to={authRoute('/login', returnTo)}>Tilbake til innlogging</Link>
+      }
     >
       {mutation.isError ? (
         <FeedbackBanner title="Passordet ble ikke endret" tone="error">

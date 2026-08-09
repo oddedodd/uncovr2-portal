@@ -153,7 +153,10 @@ export function OrganizationDetailPage() {
 
       {(location.state as { created?: boolean } | null)?.created ? (
         <FeedbackBanner title="Labelen er opprettet" tone="success">
-          Den er aktiv og kan nå korrigeres eller suspenderes.
+          Den er aktiv, og invitasjonen til den første Label Admin er sendt til{' '}
+          {(location.state as { administratorEmail?: string })
+            .administratorEmail ?? 'den oppgitte e-postadressen'}
+          .
         </FeedbackBanner>
       ) : null}
       {update.isSuccess ? (
@@ -196,7 +199,7 @@ export function OrganizationDetailPage() {
 
       <section className="settings-card" aria-labelledby="first-admin-heading">
         <div className="settings-card__heading">
-          <h2 id="first-admin-heading">Inviter labeladministrator</h2>
+          <h2 id="first-admin-heading">Inviter flere labeladministratorer</h2>
           <p>
             Mottakeren får en tidsbegrenset e-postlenke og blir Label Admin når
             invitasjonen godtas.
