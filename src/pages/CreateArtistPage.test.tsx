@@ -27,7 +27,6 @@ const user: CurrentUser = {
   email_verified_at: '2026-08-09T10:00:00.000Z',
   is_superadmin: false,
   profile: { display_name: 'Label Admin' },
-  workspaces: [workspace],
 }
 
 beforeEach(() => {

@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router'
 import { useCurrentUser } from '../features/auth/useCurrentUser.ts'
+import { useWorkspaces } from '../features/auth/useWorkspaces.ts'
+import type { Workspace } from '../lib/auth.ts'
 import {
   navigationForRole,
   roleLabel,
@@ -8,13 +10,19 @@ import {
 } from '../lib/portal.ts'
 import '../App.css'
 
+const emptyWorkspaces: Workspace[] = []
+
 export function PortalLayout() {
   const navigate = useNavigate()
   const userQuery = useCurrentUser()
+  const workspacesQuery = useWorkspaces()
   const user = userQuery.data!
+  const workspaces = Array.isArray(workspacesQuery.data)
+    ? workspacesQuery.data
+    : emptyWorkspaces
   const activeWorkspaces = useMemo(
-    () => user.workspaces.filter((workspace) => workspace.status === 'active'),
-    [user.workspaces],
+    () => workspaces.filter((workspace) => workspace.status === 'active'),
+    [workspaces],
   )
   const [workspaceId, setWorkspaceId] = useState(activeWorkspaces[0]?.id ?? '')
   const workspace =
@@ -56,7 +64,19 @@ export function PortalLayout() {
         <aside className="sidebar">
           <div className="workspace-picker">
             <label htmlFor="workspace">Arbeidsområde</label>
-            {activeWorkspaces.length > 0 ? (
+            {workspacesQuery.isPending ? (
+              <p className="workspace-picker__empty" aria-live="polite">
+                Laster arbeidsområder …
+              </p>
+            ) : workspacesQuery.isError ? (
+              <button
+                className="button button--secondary button--small"
+                onClick={() => workspacesQuery.refetch()}
+                type="button"
+              >
+                Prøv igjen
+              </button>
+            ) : activeWorkspaces.length > 0 ? (
               <select
                 id="workspace"
                 onChange={handleWorkspaceChange}
@@ -98,7 +118,20 @@ export function PortalLayout() {
           </p>
         </aside>
         <main className="portal-main" id="main-content" tabIndex={-1}>
-          <Outlet context={{ user, workspace } satisfies PortalOutletContext} />
+          <Outlet
+            context={
+              {
+                user,
+                workspaces,
+                workspacesError: workspacesQuery.error ?? undefined,
+                workspacesPending: workspacesQuery.isPending,
+                refetchWorkspaces: () => {
+                  void workspacesQuery.refetch()
+                },
+                workspace,
+              } satisfies PortalOutletContext
+            }
+          />
         </main>
       </div>
     </div>

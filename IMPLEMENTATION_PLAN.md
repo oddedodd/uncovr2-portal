@@ -83,17 +83,18 @@ Portal feature work begins after the backend-to-portal gate for B0 through B6 pa
 - [x] `P3.2` Build team listing, invitations, role changes and removals.
 - [x] `P3.3` Build artist listing and artist creation.
 - [x] `P3.4` Assign an Artist Admin during artist onboarding.
-- [ ] `P3.5` Show all permitted releases across label artists.
+- [x] `P3.4a` Add managed label logo, artist logo and artist image fields.
+- [x] `P3.5` Show all permitted releases across label artists.
 - [ ] `P3.6` Verify Label User restrictions for owned and assigned work.
 
 ### P3 gate
 
-- [ ] Label Admin can manage its label, team and artists without developer help.
+- [x] Label Admin can manage its label, team and artists without developer help.
 - [ ] Label User cannot administer team members or unrestricted content.
 
 ## P4 — Artist workflow
 
-- [ ] `P4.1` Build artist dashboard and profile editor.
+- [x] `P4.1` Build artist dashboard and profile editor.
 - [ ] `P4.2` Build artist team invitations, roles and removal.
 - [ ] `P4.3` Build release listing with status, ownership and assignment filters.
 - [ ] `P4.4` Build release creation and basic metadata editing.
@@ -111,6 +112,7 @@ Portal feature work begins after the backend-to-portal gate for B0 through B6 pa
 - [ ] `P5.3` Build page management for releases and tracks.
 - [ ] `P5.4` Build the first accessible block-editor interface.
 - [ ] `P5.5` Build media upload, selection, replacement and removal.
+  - [x] Reuse the secure media flow for release cover upload, replacement and removal.
 - [ ] `P5.6` Build streaming-link and credit editors.
 - [ ] `P5.7` Build responsive preview using the public release representation.
 - [ ] `P5.8` Build review, approval, scheduling, publishing and unpublishing controls.
@@ -128,8 +130,8 @@ Portal feature work begins after the backend-to-portal gate for B0 through B6 pa
 
 ## Portal phase gate
 
-- [ ] Superadmin creates or approves a label and its administrator.
-- [ ] Label Admin invites team members and creates an artist with an Artist Admin.
+- [x] Superadmin creates or approves a label and its administrator.
+- [x] Label Admin invites team members and creates an artist with an Artist Admin.
 - [ ] Artist Admin creates a release with tracks, media, credits and rich content.
 - [ ] The release is previewed, approved and published entirely through the portal.
 - [ ] Lower-privileged users are blocked from forbidden actions in both UI and API.

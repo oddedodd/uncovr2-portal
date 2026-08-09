@@ -6,6 +6,7 @@ import {
   onboardOrganization,
   updateOrganization,
   updateOrganizationStatus,
+  uploadOrganizationLogo,
 } from './organizations.ts'
 
 const organization = {
@@ -16,6 +17,8 @@ const organization = {
     legal_name: 'North Label AS',
     description: null,
     website_url: null,
+    logo_media_id: null,
+    logo_media: null,
   },
   created_at: '2026-08-09T10:00:00.000Z',
   updated_at: '2026-08-09T10:00:00.000Z',
@@ -76,6 +79,24 @@ describe('organization administration API', () => {
         body: JSON.stringify({ status: 'suspended' }),
       }),
     )
+  })
+
+  it('uploads label logos through the fast profile-image endpoint', async () => {
+    const fetchMock = mockOrganizationResponse()
+    const file = new File(['logo'], 'logo.png', { type: 'image/png' })
+
+    await uploadOrganizationLogo('label-1', file)
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL('http://localhost:8000/api/v1/organizations/label-1/logo'),
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        body: expect.any(FormData),
+      }),
+    )
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit
+    expect((request.body as FormData).get('image')).toBe(file)
   })
 })
 

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Form, Link } from 'react-router'
 import { FeedbackBanner } from '../components/FeedbackBanner.tsx'
+import { ImageUploadField } from '../components/ImageUploadField.tsx'
 import { OrganizationFormFields } from '../components/OrganizationFormFields.tsx'
 import { SubmitButton } from '../components/SubmitButton.tsx'
 import { fieldError, formError } from '../features/auth/validation.ts'
@@ -9,6 +10,7 @@ import {
   getOrganization,
   organizationKeys,
   updateOrganization,
+  uploadOrganizationLogo,
 } from '../lib/organizations.ts'
 import type { Workspace } from '../lib/auth.ts'
 import { roleLabel } from '../lib/portal.ts'
@@ -33,6 +35,16 @@ export function LabelDashboardPage({ workspace }: { workspace: Workspace }) {
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     update.mutate(organizationInput(new FormData(event.currentTarget)))
+  }
+
+  async function attachLogo(logoMediaId: string | null) {
+    await update.mutateAsync({ logo_media_id: logoMediaId })
+  }
+
+  async function uploadLogo(file: File) {
+    const updated = await uploadOrganizationLogo(workspace.id, file)
+    queryClient.setQueryData(organizationKeys.detail(workspace.id), updated)
+    await queryClient.invalidateQueries({ queryKey: organizationKeys.all })
   }
 
   return (
@@ -104,6 +116,16 @@ export function LabelDashboardPage({ workspace }: { workspace: Workspace }) {
                 : 'Du kan se profilen, men bare Label Admin kan endre den.'}
             </p>
           </div>
+          <ImageUploadField
+            canManage={canManage}
+            description="Labelens logo vises i arbeidsområdet. Kvadratisk format fungerer best."
+            label="Labellogo"
+            media={organization.data.profile.logo_media}
+            ownerId={organization.data.id}
+            ownerType="organization"
+            onAttach={attachLogo}
+            onUpload={uploadLogo}
+          />
           {canManage ? (
             <Form className="form-stack" method="post" onSubmit={handleSubmit}>
               <OrganizationFormFields

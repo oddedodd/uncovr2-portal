@@ -14,21 +14,53 @@ vi.mock('./features/auth/useCurrentUser.ts', () => ({
       email_verified_at: '2026-08-09T10:00:00.000Z',
       is_superadmin: false,
       profile: { display_name: 'Ada Artist' },
-      workspaces: [
-        {
-          id: 'artist-1',
-          type: 'artist',
-          name: 'Lumen',
-          role: 'artist_admin',
-          status: 'active',
-        },
-      ],
     },
   }),
 }))
 
+vi.mock('./features/auth/useWorkspaces.ts', () => ({
+  useWorkspaces: () => ({
+    data: [
+      {
+        id: 'artist-1',
+        type: 'artist',
+        name: 'Lumen',
+        role: 'artist_admin',
+        status: 'active',
+      },
+    ],
+    error: null,
+    isError: false,
+    isPending: false,
+    refetch: vi.fn(),
+  }),
+}))
+
+vi.mock('./lib/artists.ts', async (importOriginal) => {
+  const original = await importOriginal<typeof import('./lib/artists.ts')>()
+  return {
+    ...original,
+    getArtist: () =>
+      Promise.resolve({
+        id: 'artist-1',
+        status: 'active',
+        profile: {
+          name: 'Lumen',
+          biography: null,
+          website_url: null,
+          logo_media_id: null,
+          logo_media: null,
+          image_media_id: null,
+          image_media: null,
+        },
+        created_at: '2026-08-09T10:00:00.000Z',
+        updated_at: '2026-08-09T10:00:00.000Z',
+      }),
+  }
+})
+
 describe('portal shell', () => {
-  it('renders the selected workspace with accessible navigation', () => {
+  it('renders the selected workspace with accessible navigation', async () => {
     const testRouter = createMemoryRouter([
       {
         path: '/',
@@ -43,9 +75,7 @@ describe('portal shell', () => {
       </AppProviders>,
     )
 
-    expect(
-      screen.getByRole('heading', { name: 'Hei, Ada Artist.' }),
-    ).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'Lumen' })).toBeVisible()
     expect(screen.getByRole('combobox', { name: 'Arbeidsområde' })).toHaveValue(
       'artist-1',
     )

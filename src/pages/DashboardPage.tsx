@@ -3,12 +3,28 @@ import { FeedbackBanner } from '../components/FeedbackBanner.tsx'
 import { roleLabel, type PortalOutletContext } from '../lib/portal.ts'
 import { PlatformOverviewPage } from './PlatformOverviewPage.tsx'
 import { LabelDashboardPage } from './LabelDashboardPage.tsx'
+import { ArtistDetailPage } from './ArtistDetailPage.tsx'
 
 export function DashboardPage() {
-  const { user, workspace } = useOutletContext<PortalOutletContext>()
+  const {
+    user,
+    workspace,
+    workspaces = [],
+    workspacesPending,
+  } = useOutletContext<PortalOutletContext>()
+
+  if (workspacesPending) {
+    return (
+      <section className="empty-state" aria-busy="true">
+        <p className="eyebrow">Arbeidsområder</p>
+        <h1>Laster portaltilgang …</h1>
+        <p>Du kan fortsette så snart arbeidsområdene dine er hentet.</p>
+      </section>
+    )
+  }
 
   if (!workspace) {
-    const suspended = user.workspaces.filter(
+    const suspended = workspaces.filter(
       (candidate) => candidate.status === 'suspended',
     )
 
@@ -39,6 +55,10 @@ export function DashboardPage() {
 
   if (workspace.type === 'organization') {
     return <LabelDashboardPage workspace={workspace} />
+  }
+
+  if (workspace.type === 'artist') {
+    return <ArtistDetailPage artistId={workspace.id} />
   }
 
   return (

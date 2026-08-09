@@ -1,5 +1,6 @@
 import { apiRequest } from './api.ts'
 import type { CursorPagination } from './platformSearch.ts'
+import type { MediaReference } from './media.ts'
 
 export interface Organization {
   id: string
@@ -9,6 +10,8 @@ export interface Organization {
     legal_name: string | null
     description: string | null
     website_url: string | null
+    logo_media_id: string | null
+    logo_media: MediaReference | null
   }
   created_at: string
   updated_at: string
@@ -20,6 +23,10 @@ export interface OrganizationInput {
   description: string | null
   website_url: string | null
 }
+
+export type OrganizationUpdateInput = Partial<
+  OrganizationInput & { logo_media_id: string | null }
+>
 
 interface OrganizationPaginationMeta {
   pagination?: CursorPagination
@@ -110,12 +117,25 @@ export function onboardOrganization(input: OrganizationOnboardingInput) {
 
 export function updateOrganization(
   organizationId: string,
-  input: OrganizationInput,
+  input: OrganizationUpdateInput,
 ) {
   return apiRequest<Organization>(`/api/v1/organizations/${organizationId}`, {
     method: 'PATCH',
     body: JSON.stringify(input),
   }).then((response) => response.data)
+}
+
+export function uploadOrganizationLogo(organizationId: string, file: File) {
+  const formData = new FormData()
+  formData.append('image', file)
+
+  return apiRequest<Organization>(
+    `/api/v1/organizations/${organizationId}/logo`,
+    {
+      method: 'POST',
+      body: formData,
+    },
+  ).then((response) => response.data)
 }
 
 export function updateOrganizationStatus(

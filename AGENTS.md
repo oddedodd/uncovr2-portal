@@ -3,6 +3,9 @@
 ## Project
 
 - This repository contains the Uncovr admin portal.
+- Work only in `/Users/odde/Documents/Coding/Personal/Uncovr/uncover-portal`.
+  Ignore other local copies or similarly named workspaces unless the user
+  explicitly changes this path.
 - Use React, TypeScript and Vite.
 - Use React Router in Data Mode for routing and TanStack Query for server state.
 - Laravel is the only backend and authorization boundary. Do not duplicate

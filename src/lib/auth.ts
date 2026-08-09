@@ -24,7 +24,6 @@ export interface CurrentUser {
   profile: {
     display_name: string | null
   }
-  workspaces: Workspace[]
 }
 
 export interface DeviceSession {
@@ -41,10 +40,14 @@ export interface DeviceSession {
   current: boolean
 }
 
-interface LoginResponse {
-  user: Pick<CurrentUser, 'id' | 'email' | 'profile'>
+export interface LoginResponse {
+  user: CurrentUser
   session: Omit<DeviceSession, 'current' | 'last_ip_address' | 'user_agent'>
   authentication: { type: 'session' }
+}
+
+export interface WorkspacesResponse {
+  workspaces: Workspace[]
 }
 
 export interface RegisterInput {
@@ -62,6 +65,7 @@ export interface RegisterInput {
 
 export const authKeys = {
   currentUser: ['auth', 'current-user'] as const,
+  workspaces: ['auth', 'workspaces'] as const,
   sessions: ['auth', 'sessions'] as const,
 }
 
@@ -124,6 +128,12 @@ export function resetPassword(input: {
 
 export function getCurrentUser() {
   return apiRequest<CurrentUser>('/api/v1/me').then((response) => response.data)
+}
+
+export function getCurrentWorkspaces() {
+  return apiRequest<WorkspacesResponse>('/api/v1/me/workspaces').then(
+    (response) => response.data.workspaces,
+  )
 }
 
 export function updateCurrentUser(displayName: string) {

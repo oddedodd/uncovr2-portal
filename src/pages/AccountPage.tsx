@@ -16,7 +16,13 @@ import {
 import { roleLabel, type PortalOutletContext } from '../lib/portal.ts'
 
 export function AccountPage() {
-  const { user } = useOutletContext<PortalOutletContext>()
+  const {
+    user,
+    workspaces = [],
+    workspacesError,
+    workspacesPending,
+    refetchWorkspaces,
+  } = useOutletContext<PortalOutletContext>()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const sessions = useQuery({
@@ -112,11 +118,26 @@ export function AccountPage() {
           <h2 id="workspaces-heading">Arbeidsområder</h2>
           <p>Aktive og suspenderte roller knyttet til kontoen.</p>
         </div>
-        {user.workspaces.length === 0 ? (
+        {workspacesPending ? (
+          <p aria-live="polite">Laster arbeidsområder …</p>
+        ) : null}
+        {workspacesError ? (
+          <FeedbackBanner title="Kunne ikke laste arbeidsområder" tone="error">
+            <p>{workspacesError.message}</p>
+            <button
+              className="button button--secondary"
+              onClick={refetchWorkspaces}
+            >
+              Prøv igjen
+            </button>
+          </FeedbackBanner>
+        ) : null}
+        {!workspacesPending && !workspacesError && workspaces.length === 0 ? (
           <div className="inline-empty">Du har ingen arbeidsområder ennå.</div>
-        ) : (
+        ) : null}
+        {!workspacesPending && !workspacesError && workspaces.length > 0 ? (
           <ul className="workspace-list">
-            {user.workspaces.map((workspace) => (
+            {workspaces.map((workspace) => (
               <li key={`${workspace.type}:${workspace.id}`}>
                 <div>
                   <strong>{workspace.name}</strong>
@@ -130,7 +151,7 @@ export function AccountPage() {
               </li>
             ))}
           </ul>
-        )}
+        ) : null}
       </section>
 
       <section className="settings-card" aria-labelledby="sessions-heading">

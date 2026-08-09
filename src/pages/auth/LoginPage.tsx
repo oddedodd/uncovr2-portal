@@ -12,7 +12,7 @@ import { FormField } from '../../components/FormField.tsx'
 import { SubmitButton } from '../../components/SubmitButton.tsx'
 import { fieldError, formError } from '../../features/auth/validation.ts'
 import { ApiError } from '../../lib/api.ts'
-import { authKeys, getCurrentUser, login } from '../../lib/auth.ts'
+import { authKeys, getCurrentWorkspaces, login } from '../../lib/auth.ts'
 import { authRoute, readInvitationReturnTo } from '../../lib/authNavigation.ts'
 
 export function LoginPage() {
@@ -27,10 +27,11 @@ export function LoginPage() {
   const mutation = useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       login(email, password),
-    onSuccess: async () => {
-      await queryClient.fetchQuery({
-        queryKey: authKeys.currentUser,
-        queryFn: getCurrentUser,
+    onSuccess: (response) => {
+      queryClient.setQueryData(authKeys.currentUser, response.data.user)
+      void queryClient.prefetchQuery({
+        queryKey: authKeys.workspaces,
+        queryFn: getCurrentWorkspaces,
       })
       navigate(returnTo ?? '/', { replace: true })
     },

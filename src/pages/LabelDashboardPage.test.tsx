@@ -25,6 +25,8 @@ const organization = {
     legal_name: 'North Label AS',
     description: null,
     website_url: null,
+    logo_media_id: null,
+    logo_media: null,
   },
   created_at: '2026-08-09T10:00:00.000Z',
   updated_at: '2026-08-09T10:00:00.000Z',

@@ -31,6 +31,10 @@ const workspaceNavigation: NavigationItem[] = [
 
 export interface PortalOutletContext {
   user: CurrentUser
+  workspaces: Workspace[]
+  workspacesError?: Error
+  workspacesPending: boolean
+  refetchWorkspaces: () => void
   workspace?: Workspace
 }
 

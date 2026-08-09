@@ -2,18 +2,29 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useOutletContext } from 'react-router'
 import { FeedbackBanner } from '../components/FeedbackBanner.tsx'
+import { MediaThumbnail } from '../components/MediaThumbnail.tsx'
 import { formError } from '../features/auth/validation.ts'
 import { artistKeys, getArtists, type Artist } from '../lib/artists.ts'
+import { getMediaDownloadUrls, mediaKeys } from '../lib/media.ts'
 import type { PortalOutletContext } from '../lib/portal.ts'
 import { WorkspaceSectionPage } from './WorkspaceSectionPage.tsx'
 
 type CursorState = { after?: string; before?: string }
 
-function ArtistRow({ artist }: { artist: Artist }) {
+function ArtistRow({
+  artist,
+  imageUrl,
+}: {
+  artist: Artist
+  imageUrl?: string
+}) {
   return (
     <li>
+      <MediaThumbnail alt={`Logo for ${artist.profile.name}`} url={imageUrl} />
       <div>
-        <strong>{artist.profile.name}</strong>
+        <Link className="resource-link" to={`/artists/${artist.id}`}>
+          <strong>{artist.profile.name}</strong>
+        </Link>
         <span>{artist.profile.website_url ?? artist.id}</span>
       </div>
       <span className={`status-pill status-pill--${artist.status}`}>
@@ -30,6 +41,20 @@ export function ArtistsPage() {
     queryKey: artistKeys.list(cursor.after, cursor.before),
     queryFn: () => getArtists(cursor),
     retry: false,
+  })
+  const imageIds =
+    artists.data?.data
+      .map(
+        (artist) =>
+          (artist.profile.logo_media ?? artist.profile.image_media)?.id,
+      )
+      .filter((id): id is string => Boolean(id)) ?? []
+  const images = useQuery({
+    queryKey: mediaKeys.downloads(imageIds),
+    queryFn: () => getMediaDownloadUrls(imageIds),
+    enabled: imageIds.length > 0,
+    retry: false,
+    staleTime: 5 * 60 * 1000,
   })
 
   if (!workspace) return <WorkspaceSectionPage />
@@ -84,7 +109,14 @@ export function ArtistsPage() {
         ) : artists.data ? (
           <ul className="resource-list">
             {artists.data.data.map((artist) => (
-              <ArtistRow artist={artist} key={artist.id} />
+              <ArtistRow
+                artist={artist}
+                imageUrl={images.data?.get(
+                  (artist.profile.logo_media ?? artist.profile.image_media)
+                    ?.id ?? '',
+                )}
+                key={artist.id}
+              />
             ))}
           </ul>
         ) : null}

@@ -7,6 +7,7 @@ import { AccountPage } from '../pages/AccountPage.tsx'
 import { AcceptArtistInvitationPage } from '../pages/AcceptArtistInvitationPage.tsx'
 import { AcceptOrganizationInvitationPage } from '../pages/AcceptOrganizationInvitationPage.tsx'
 import { ArtistsPage } from '../pages/ArtistsPage.tsx'
+import { ArtistDetailPage } from '../pages/ArtistDetailPage.tsx'
 import { CreateArtistPage } from '../pages/CreateArtistPage.tsx'
 import { CreateOrganizationPage } from '../pages/CreateOrganizationPage.tsx'
 import { DashboardPage } from '../pages/DashboardPage.tsx'
@@ -17,7 +18,8 @@ import { PlatformSearchPage } from '../pages/PlatformSearchPage.tsx'
 import { PlatformUserPage } from '../pages/PlatformUserPage.tsx'
 import { LabelTeamPage } from '../pages/LabelTeamPage.tsx'
 import { InvitationEntryPage } from '../pages/InvitationEntryPage.tsx'
-import { WorkspaceSectionPage } from '../pages/WorkspaceSectionPage.tsx'
+import { ReleasesPage } from '../pages/ReleasesPage.tsx'
+import { ReleaseDetailPage } from '../pages/ReleaseDetailPage.tsx'
 import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage.tsx'
 import { LoginPage } from '../pages/auth/LoginPage.tsx'
 import { RegisterPage } from '../pages/auth/RegisterPage.tsx'
@@ -107,8 +109,10 @@ export const router = createBrowserRouter([
             ),
           },
           { path: 'artists', element: <ArtistsPage /> },
+          { path: 'artists/:artistId', element: <ArtistDetailPage /> },
           { path: 'artists/new', element: <CreateArtistPage /> },
-          { path: 'releases', element: <WorkspaceSectionPage /> },
+          { path: 'releases', element: <ReleasesPage /> },
+          { path: 'releases/:releaseId', element: <ReleaseDetailPage /> },
           { path: 'team', element: <LabelTeamPage /> },
           { path: 'forbidden', element: <ForbiddenPage /> },
         ],

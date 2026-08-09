@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { acceptArtistInvitation, getArtists, onboardArtist } from './artists.ts'
+import {
+  acceptArtistInvitation,
+  getArtists,
+  onboardArtist,
+  uploadArtistImage,
+  uploadArtistLogo,
+} from './artists.ts'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -65,6 +71,36 @@ describe('artist API', () => {
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ token: 'plain-token' }),
+      }),
+    )
+  })
+
+  it('uploads artist profile images through dedicated fast endpoints', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ data: {} }))
+      .mockResolvedValueOnce(jsonResponse({ data: {} }))
+    const file = new File(['image'], 'artist.jpg', { type: 'image/jpeg' })
+
+    await uploadArtistLogo('artist-1', file)
+    await uploadArtistImage('artist-1', file)
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      new URL('http://localhost:8000/api/v1/artists/artist-1/logo'),
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        body: expect.any(FormData),
+      }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      new URL('http://localhost:8000/api/v1/artists/artist-1/image'),
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        body: expect.any(FormData),
       }),
     )
   })

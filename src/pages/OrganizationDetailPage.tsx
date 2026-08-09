@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Form, Link, useLocation, useParams } from 'react-router'
 import { FeedbackBanner } from '../components/FeedbackBanner.tsx'
+import { ImageUploadField } from '../components/ImageUploadField.tsx'
 import { OrganizationFormFields } from '../components/OrganizationFormFields.tsx'
 import { SubmitButton } from '../components/SubmitButton.tsx'
 import { fieldError, formError } from '../features/auth/validation.ts'
@@ -12,6 +13,7 @@ import {
   organizationKeys,
   updateOrganization,
   updateOrganizationStatus,
+  uploadOrganizationLogo,
   type Organization,
 } from '../lib/organizations.ts'
 import { platformKeys } from '../lib/platform.ts'
@@ -119,6 +121,16 @@ export function OrganizationDetailPage() {
     invitation.mutate(String(data.get('email') ?? '').trim())
   }
 
+  async function attachLogo(logoMediaId: string | null) {
+    await update.mutateAsync({ logo_media_id: logoMediaId })
+  }
+
+  async function uploadLogo(file: File) {
+    const updated = await uploadOrganizationLogo(organizationId, file)
+    queryClient.setQueryData(organizationKeys.detail(organizationId), updated)
+    await queryClient.invalidateQueries({ queryKey: organizationKeys.all })
+  }
+
   if (organization.isPending) {
     return <p aria-live="polite">Henter label …</p>
   }
@@ -181,6 +193,16 @@ export function OrganizationDetailPage() {
           <h2 id="label-profile-heading">Labelprofil</h2>
           <p>Offentlig ID: {current.id}</p>
         </div>
+        <ImageUploadField
+          canManage
+          description="Labelens logo vises i arbeidsområdet. Kvadratisk format fungerer best."
+          label="Labellogo"
+          media={current.profile.logo_media}
+          ownerId={current.id}
+          ownerType="organization"
+          onAttach={attachLogo}
+          onUpload={uploadLogo}
+        />
         <Form className="form-stack" method="post" onSubmit={handleSubmit}>
           <OrganizationFormFields
             values={current.profile}

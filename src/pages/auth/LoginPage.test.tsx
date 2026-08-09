@@ -7,31 +7,39 @@ import { LoginPage } from './LoginPage.tsx'
 
 const authMocks = vi.hoisted(() => ({
   login: vi.fn(),
-  getCurrentUser: vi.fn(),
+  getCurrentWorkspaces: vi.fn(),
 }))
 
 vi.mock('../../lib/auth.ts', () => ({
-  authKeys: { currentUser: ['auth', 'current-user'] },
+  authKeys: {
+    currentUser: ['auth', 'current-user'],
+    workspaces: ['auth', 'workspaces'],
+  },
   login: authMocks.login,
-  getCurrentUser: authMocks.getCurrentUser,
+  getCurrentWorkspaces: authMocks.getCurrentWorkspaces,
 }))
 
 beforeEach(() => {
   authMocks.login.mockReset()
-  authMocks.getCurrentUser.mockReset()
+  authMocks.getCurrentWorkspaces.mockReset()
 })
 
 describe('LoginPage', () => {
   it('logs in and continues to the protected portal', async () => {
-    authMocks.login.mockResolvedValue({ data: {} })
-    authMocks.getCurrentUser.mockResolvedValue({
-      id: 'user-1',
-      email: 'ada@example.com',
-      email_verified_at: '2026-08-09T10:00:00.000Z',
-      is_superadmin: true,
-      profile: { display_name: 'Ada Admin' },
-      workspaces: [],
+    authMocks.login.mockResolvedValue({
+      data: {
+        user: {
+          id: 'user-1',
+          email: 'ada@example.com',
+          email_verified_at: '2026-08-09T10:00:00.000Z',
+          is_superadmin: true,
+          profile: { display_name: 'Ada Admin' },
+        },
+        session: {},
+        authentication: { type: 'session' },
+      },
     })
+    authMocks.getCurrentWorkspaces.mockResolvedValue([])
     const router = createMemoryRouter(
       [
         { path: '/login', element: <LoginPage /> },
@@ -64,15 +72,20 @@ describe('LoginPage', () => {
   })
 
   it('returns an invited user to the acceptance link after login', async () => {
-    authMocks.login.mockResolvedValue({ data: {} })
-    authMocks.getCurrentUser.mockResolvedValue({
-      id: 'user-1',
-      email: 'artist-admin@example.com',
-      email_verified_at: '2026-08-09T10:00:00.000Z',
-      is_superadmin: false,
-      profile: { display_name: 'Artist Admin' },
-      workspaces: [],
+    authMocks.login.mockResolvedValue({
+      data: {
+        user: {
+          id: 'user-1',
+          email: 'artist-admin@example.com',
+          email_verified_at: '2026-08-09T10:00:00.000Z',
+          is_superadmin: false,
+          profile: { display_name: 'Artist Admin' },
+        },
+        session: {},
+        authentication: { type: 'session' },
+      },
     })
+    authMocks.getCurrentWorkspaces.mockResolvedValue([])
     const returnTo = '/artist-invitations/accept?token=artist-invite-token'
     const loginPath = `/login?return_to=${encodeURIComponent(returnTo)}`
     const router = createMemoryRouter(
