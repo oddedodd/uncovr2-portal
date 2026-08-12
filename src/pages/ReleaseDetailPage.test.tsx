@@ -7,14 +7,25 @@ import type { CurrentUser, Workspace } from '../lib/auth.ts'
 import { ReleaseDetailPage } from './ReleaseDetailPage.tsx'
 
 const releaseMocks = vi.hoisted(() => ({
+  addReleaseArtist: vi.fn(),
   getRelease: vi.fn(),
+  removeReleaseArtist: vi.fn(),
   updateRelease: vi.fn(),
   updateReleaseCover: vi.fn(),
+}))
+
+const artistMocks = vi.hoisted(() => ({
+  getArtists: vi.fn(),
 }))
 
 vi.mock('../lib/releases.ts', async (importOriginal) => {
   const original = await importOriginal<typeof import('../lib/releases.ts')>()
   return { ...original, ...releaseMocks }
+})
+
+vi.mock('../lib/artists.ts', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../lib/artists.ts')>()
+  return { ...original, ...artistMocks }
 })
 
 const user: CurrentUser = {
@@ -102,10 +113,44 @@ function renderRelease(
 }
 
 beforeEach(() => {
+  artistMocks.getArtists.mockReset()
   releaseMocks.getRelease.mockReset()
+  releaseMocks.addReleaseArtist.mockReset()
+  releaseMocks.removeReleaseArtist.mockReset()
   releaseMocks.updateRelease.mockReset()
   releaseMocks.updateReleaseCover.mockReset()
+  artistMocks.getArtists.mockResolvedValue({
+    data: [
+      {
+        id: 'artist-2',
+        status: 'active',
+        profile: {
+          name: 'Nova',
+          biography: null,
+          website_url: null,
+          logo_media_id: null,
+          logo_media: null,
+          image_media_id: null,
+          image_media: null,
+        },
+        created_at: '2026-08-09T10:00:00.000Z',
+        updated_at: '2026-08-09T10:00:00.000Z',
+      },
+    ],
+    pagination: {
+      per_page: 25,
+      next_cursor: null,
+      previous_cursor: null,
+      has_more: false,
+    },
+  })
   releaseMocks.getRelease.mockResolvedValue(release)
+  releaseMocks.addReleaseArtist.mockResolvedValue({
+    artist_id: 'artist-2',
+    is_primary: false,
+    position: 2,
+  })
+  releaseMocks.removeReleaseArtist.mockResolvedValue({ message: 'Removed' })
   releaseMocks.updateRelease.mockResolvedValue(release)
 })
 
@@ -154,6 +199,46 @@ describe('ReleaseDetailPage', () => {
       release_date: null,
       upc: null,
     })
+  })
+
+  it('adds and removes release artists for assigned draft releases', async () => {
+    const browserUser = userEvent.setup()
+    releaseMocks.getRelease.mockResolvedValue({
+      ...release,
+      artists: [
+        ...release.artists,
+        {
+          artist_id: 'artist-3',
+          name: 'Echo',
+          is_primary: false,
+          position: 2,
+        },
+      ],
+      editor_user_ids: ['label-user-1'],
+    })
+
+    renderRelease()
+
+    await screen.findByRole('heading', { name: 'Signal' })
+    await screen.findByRole('option', { name: 'Nova' })
+    await browserUser.selectOptions(
+      screen.getByLabelText('Legg til artist'),
+      'artist-2',
+    )
+    await browserUser.click(
+      screen.getByRole('button', { name: 'Legg til artist' }),
+    )
+    await browserUser.click(screen.getByRole('button', { name: 'Fjern' }))
+
+    expect(releaseMocks.addReleaseArtist).toHaveBeenCalledWith('release-1', {
+      artist_id: 'artist-2',
+      is_primary: false,
+      position: 3,
+    })
+    expect(releaseMocks.removeReleaseArtist).toHaveBeenCalledWith(
+      'release-1',
+      'artist-3',
+    )
   })
 
   it('keeps Artist User from editing unassigned artist releases', async () => {

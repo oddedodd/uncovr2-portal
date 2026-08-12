@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  addReleaseArtist,
   createRelease,
   getReleases,
+  removeReleaseArtist,
   updateRelease,
   updateReleaseCover,
 } from './releases.ts'
@@ -128,6 +130,45 @@ describe('release API', () => {
           upc: '123456789012',
         }),
       }),
+    )
+  })
+
+  it('attaches artists to releases through Laravel', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ data: {} }))
+
+    await addReleaseArtist('release-1', {
+      artist_id: 'artist-2',
+      is_primary: true,
+      position: 2,
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL('http://localhost:8000/api/v1/releases/release-1/artists'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          artist_id: 'artist-2',
+          is_primary: true,
+          position: 2,
+        }),
+      }),
+    )
+  })
+
+  it('removes artists from releases through Laravel', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ data: { message: 'Removed' } }))
+
+    await removeReleaseArtist('release-1', 'artist-2')
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL(
+        'http://localhost:8000/api/v1/releases/release-1/artists/artist-2',
+      ),
+      expect.objectContaining({ method: 'DELETE' }),
     )
   })
 })

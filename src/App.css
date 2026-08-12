@@ -1151,6 +1151,51 @@
   font-size: 0.8rem;
 }
 
+.release-artist-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.release-artist-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.release-artist-list li:last-child {
+  border-bottom: 0;
+}
+
+.release-artist-list li > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.release-artist-list span {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.release-artist-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(7rem, 10rem);
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.release-artist-form .checkbox-field,
+.release-artist-form .resource-form-actions {
+  grid-column: 1 / -1;
+}
+
 .resource-form-page {
   display: grid;
   max-width: 50rem;
@@ -1811,6 +1856,15 @@
   }
 
   .release-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .release-artist-list li {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .release-artist-form {
     grid-template-columns: 1fr;
   }
 

@@ -52,6 +52,12 @@ export interface CreateReleaseInput extends ReleaseMetadataInput {
   cover_media_id: string | null
 }
 
+export interface ReleaseArtistInput {
+  artist_id: string
+  is_primary: boolean
+  position: number
+}
+
 interface ReleasePaginationMeta {
   pagination?: CursorPagination
 }
@@ -120,4 +126,22 @@ export function updateReleaseCover(
   coverMediaId: string | null,
 ) {
   return updateRelease(releaseId, { cover_media_id: coverMediaId })
+}
+
+export function addReleaseArtist(releaseId: string, input: ReleaseArtistInput) {
+  return apiRequest<{
+    artist_id: string
+    is_primary: boolean
+    position: number
+  }>(`/api/v1/releases/${releaseId}/artists`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  }).then((response) => response.data)
+}
+
+export function removeReleaseArtist(releaseId: string, artistId: string) {
+  return apiRequest<{ message: string }>(
+    `/api/v1/releases/${releaseId}/artists/${artistId}`,
+    { method: 'DELETE' },
+  ).then((response) => response.data)
 }
