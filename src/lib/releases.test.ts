@@ -2,10 +2,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   addReleaseArtist,
   createRelease,
+  createReleaseTrack,
+  deleteReleaseTrack,
   getReleases,
   removeReleaseArtist,
   updateRelease,
   updateReleaseCover,
+  updateReleaseTrack,
 } from './releases.ts'
 
 afterEach(() => vi.restoreAllMocks())
@@ -168,6 +171,66 @@ describe('release API', () => {
       new URL(
         'http://localhost:8000/api/v1/releases/release-1/artists/artist-2',
       ),
+      expect.objectContaining({ method: 'DELETE' }),
+    )
+  })
+
+  it('creates tracks through Laravel', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ data: {} }))
+
+    await createReleaseTrack('release-1', {
+      position: 1,
+      title: 'Arrival',
+      duration_ms: 183000,
+      isrc: 'NOABC2600001',
+      is_explicit: false,
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL('http://localhost:8000/api/v1/releases/release-1/tracks'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          position: 1,
+          title: 'Arrival',
+          duration_ms: 183000,
+          isrc: 'NOABC2600001',
+          is_explicit: false,
+        }),
+      }),
+    )
+  })
+
+  it('updates tracks through Laravel', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ data: {} }))
+
+    await updateReleaseTrack('release-1', 'track-1', {
+      position: 2,
+      title: 'Departure',
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL('http://localhost:8000/api/v1/releases/release-1/tracks/track-1'),
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ position: 2, title: 'Departure' }),
+      }),
+    )
+  })
+
+  it('deletes tracks through Laravel', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ data: { message: 'Deleted' } }))
+
+    await deleteReleaseTrack('release-1', 'track-1')
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL('http://localhost:8000/api/v1/releases/release-1/tracks/track-1'),
       expect.objectContaining({ method: 'DELETE' }),
     )
   })

@@ -9,18 +9,45 @@ import { artistKeys, getArtists } from '../lib/artists.ts'
 import type { PortalOutletContext } from '../lib/portal.ts'
 import {
   addReleaseArtist,
+  createReleaseTrack,
+  deleteReleaseTrack,
   getRelease,
   releaseKeys,
   removeReleaseArtist,
   updateRelease,
   updateReleaseCover,
+  updateReleaseTrack,
   type ReleaseArtistInput,
   type ReleaseMetadataInput,
+  type ReleaseTrack,
+  type ReleaseTrackInput,
 } from '../lib/releases.ts'
 
 function optionalString(data: FormData, key: string): string | null {
   const value = String(data.get(key) ?? '').trim()
   return value || null
+}
+
+function optionalDurationMs(data: FormData): number | null {
+  const value = String(data.get('duration_seconds') ?? '').trim()
+  return value ? Math.round(Number(value) * 1000) : null
+}
+
+function durationSeconds(durationMs: number | null) {
+  return durationMs === null ? '' : String(Math.round(durationMs / 1000))
+}
+
+function trackPayload(
+  data: FormData,
+  fallbackPosition: number,
+): ReleaseTrackInput {
+  return {
+    position: Number(data.get('position') ?? fallbackPosition),
+    title: String(data.get('title') ?? '').trim(),
+    duration_ms: optionalDurationMs(data),
+    isrc: optionalString(data, 'isrc')?.toUpperCase() ?? null,
+    is_explicit: data.get('is_explicit') === 'on',
+  }
 }
 
 export function ReleaseDetailPage() {
@@ -61,6 +88,75 @@ export function ReleaseDetailPage() {
   })
   const removeArtist = useMutation({
     mutationFn: (artistId: string) => removeReleaseArtist(releaseId, artistId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: releaseKeys.detail(releaseId),
+        }),
+        queryClient.invalidateQueries({ queryKey: releaseKeys.all }),
+      ])
+    },
+  })
+  const createTrack = useMutation({
+    mutationFn: (input: ReleaseTrackInput) =>
+      createReleaseTrack(releaseId, input),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: releaseKeys.detail(releaseId),
+        }),
+        queryClient.invalidateQueries({ queryKey: releaseKeys.all }),
+      ])
+    },
+  })
+  const updateTrack = useMutation({
+    mutationFn: ({
+      trackId,
+      input,
+    }: {
+      trackId: string
+      input: Partial<ReleaseTrackInput>
+    }) => updateReleaseTrack(releaseId, trackId, input),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: releaseKeys.detail(releaseId),
+        }),
+        queryClient.invalidateQueries({ queryKey: releaseKeys.all }),
+      ])
+    },
+  })
+  const deleteTrack = useMutation({
+    mutationFn: (trackId: string) => deleteReleaseTrack(releaseId, trackId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: releaseKeys.detail(releaseId),
+        }),
+        queryClient.invalidateQueries({ queryKey: releaseKeys.all }),
+      ])
+    },
+  })
+  const moveTrack = useMutation({
+    mutationFn: async ({
+      track,
+      target,
+      temporaryPosition,
+    }: {
+      track: ReleaseTrack
+      target: ReleaseTrack
+      temporaryPosition: number
+    }) => {
+      await updateReleaseTrack(releaseId, track.id, {
+        position: temporaryPosition,
+      })
+      await updateReleaseTrack(releaseId, target.id, {
+        position: track.position,
+      })
+      return updateReleaseTrack(releaseId, track.id, {
+        position: target.position,
+      })
+    },
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({
@@ -120,6 +216,38 @@ export function ReleaseDetailPage() {
     })
   }
 
+  function handleTrackSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    createTrack.mutate(trackPayload(data, sortedTracks.length + 1))
+  }
+
+  function handleTrackUpdate(
+    event: React.FormEvent<HTMLFormElement>,
+    track: ReleaseTrack,
+  ) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    updateTrack.mutate({
+      trackId: track.id,
+      input: trackPayload(data, track.position),
+    })
+  }
+
+  function move(track: ReleaseTrack, direction: -1 | 1) {
+    const index = sortedTracks.findIndex(
+      (candidate) => candidate.id === track.id,
+    )
+    const target = sortedTracks[index + direction]
+    if (!target) return
+    moveTrack.mutate({
+      track,
+      target,
+      temporaryPosition:
+        Math.max(0, ...sortedTracks.map((candidate) => candidate.position)) + 1,
+    })
+  }
+
   const linkedArtistIds = new Set(
     current.artists.map((artist) => artist.artist_id),
   )
@@ -128,6 +256,9 @@ export function ReleaseDetailPage() {
   const nextPosition =
     Math.max(0, ...current.artists.map((artist) => artist.position)) + 1
   const sortedReleaseArtists = [...current.artists].sort(
+    (first, second) => first.position - second.position,
+  )
+  const sortedTracks = [...(current.tracks ?? [])].sort(
     (first, second) => first.position - second.position,
   )
 
@@ -269,6 +400,192 @@ export function ReleaseDetailPage() {
                 pendingLabel="Legger til …"
               >
                 Legg til artist
+              </SubmitButton>
+            </div>
+          </Form>
+        ) : null}
+      </section>
+      <section
+        className="settings-card"
+        aria-labelledby="release-tracks-heading"
+      >
+        <div className="settings-card__heading">
+          <h2 id="release-tracks-heading">Spor</h2>
+          <p>
+            {canManage
+              ? 'Legg til, rediger og sorter sporene før publisering.'
+              : 'Sporlisten kan endres på redigerbare utgivelser du har tilgang til.'}
+          </p>
+        </div>
+        {createTrack.isError ? (
+          <FeedbackBanner title="Kunne ikke legge til spor" tone="error">
+            {formError(createTrack.error)}
+          </FeedbackBanner>
+        ) : null}
+        {updateTrack.isError || moveTrack.isError ? (
+          <FeedbackBanner title="Kunne ikke lagre spor" tone="error">
+            {formError(updateTrack.error ?? moveTrack.error)}
+          </FeedbackBanner>
+        ) : null}
+        {deleteTrack.isError ? (
+          <FeedbackBanner title="Kunne ikke fjerne spor" tone="error">
+            {formError(deleteTrack.error)}
+          </FeedbackBanner>
+        ) : null}
+        {sortedTracks.length === 0 ? (
+          <div className="inline-empty">Ingen spor er lagt til ennå.</div>
+        ) : (
+          <ul className="track-list">
+            {sortedTracks.map((track, index) => (
+              <li key={track.id}>
+                <div className="track-list__summary">
+                  <span className="track-list__position">{track.position}</span>
+                  <div>
+                    <strong>{track.title}</strong>
+                    <span>
+                      {track.duration_ms
+                        ? `${Math.round(track.duration_ms / 1000)} sek`
+                        : 'Ingen varighet'}
+                      {track.isrc ? ` · ${track.isrc}` : ''}
+                      {track.is_explicit ? ' · Explicit' : ''}
+                    </span>
+                  </div>
+                </div>
+                {canManage ? (
+                  <div className="track-list__actions">
+                    <button
+                      className="button button--secondary button--small"
+                      disabled={index === 0 || moveTrack.isPending}
+                      onClick={() => move(track, -1)}
+                      type="button"
+                    >
+                      Opp
+                    </button>
+                    <button
+                      className="button button--secondary button--small"
+                      disabled={
+                        index === sortedTracks.length - 1 || moveTrack.isPending
+                      }
+                      onClick={() => move(track, 1)}
+                      type="button"
+                    >
+                      Ned
+                    </button>
+                    <button
+                      className="button button--secondary button--small"
+                      disabled={deleteTrack.isPending}
+                      onClick={() => deleteTrack.mutate(track.id)}
+                      type="button"
+                    >
+                      Fjern
+                    </button>
+                  </div>
+                ) : null}
+                {canManage ? (
+                  <Form
+                    className="track-edit-form"
+                    method="post"
+                    onSubmit={(event) => handleTrackUpdate(event, track)}
+                  >
+                    <FormField
+                      defaultValue={track.title}
+                      label="Sportittel"
+                      maxLength={200}
+                      name="title"
+                      required
+                    />
+                    <FormField
+                      defaultValue={track.position}
+                      label="Posisjon"
+                      min={1}
+                      name="position"
+                      required
+                      type="number"
+                    />
+                    <FormField
+                      defaultValue={durationSeconds(track.duration_ms)}
+                      inputMode="numeric"
+                      label="Varighet (sekunder)"
+                      min={0}
+                      name="duration_seconds"
+                      type="number"
+                    />
+                    <FormField
+                      defaultValue={track.isrc ?? ''}
+                      label="ISRC"
+                      maxLength={12}
+                      name="isrc"
+                      pattern="[A-Z]{2}[A-Z0-9]{3}[0-9]{7}"
+                    />
+                    <label className="checkbox-field">
+                      <input
+                        defaultChecked={track.is_explicit}
+                        name="is_explicit"
+                        type="checkbox"
+                      />
+                      <span>Explicit</span>
+                    </label>
+                    <div className="resource-form-actions">
+                      <SubmitButton
+                        pending={updateTrack.isPending}
+                        pendingLabel="Lagrer …"
+                      >
+                        Lagre spor
+                      </SubmitButton>
+                    </div>
+                  </Form>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+        {canManage ? (
+          <Form
+            className="track-create-form"
+            method="post"
+            onSubmit={handleTrackSubmit}
+          >
+            <FormField
+              error={fieldError(createTrack.error, 'title')}
+              label="Nytt spor"
+              maxLength={200}
+              name="title"
+              required
+            />
+            <FormField
+              defaultValue={sortedTracks.length + 1}
+              error={fieldError(createTrack.error, 'position')}
+              label="Posisjon"
+              min={1}
+              name="position"
+              required
+              type="number"
+            />
+            <FormField
+              error={fieldError(createTrack.error, 'duration_ms')}
+              inputMode="numeric"
+              label="Varighet (sekunder)"
+              min={0}
+              name="duration_seconds"
+              type="number"
+            />
+            <FormField
+              error={fieldError(createTrack.error, 'isrc')}
+              label="ISRC"
+              maxLength={12}
+              name="isrc"
+              pattern="[A-Z]{2}[A-Z0-9]{3}[0-9]{7}"
+            />
+            <label className="checkbox-field">
+              <input name="is_explicit" type="checkbox" />
+              <span>Explicit</span>
+            </label>
+            <div className="resource-form-actions">
+              <SubmitButton
+                pending={createTrack.isPending}
+                pendingLabel="Legger til …"
+              >
+                Legg til spor
               </SubmitButton>
             </div>
           </Form>

@@ -21,8 +21,19 @@ export interface Release {
     position: number
   }>
   editor_user_ids: string[]
+  tracks?: ReleaseTrack[]
   created_at: string
   updated_at: string
+}
+
+export interface ReleaseTrack {
+  id: string
+  release_id?: string
+  position: number
+  title: string
+  duration_ms: number | null
+  isrc: string | null
+  is_explicit: boolean
 }
 
 export interface ReleasePage {
@@ -56,6 +67,14 @@ export interface ReleaseArtistInput {
   artist_id: string
   is_primary: boolean
   position: number
+}
+
+export interface ReleaseTrackInput {
+  position: number
+  title: string
+  duration_ms: number | null
+  isrc: string | null
+  is_explicit: boolean
 }
 
 interface ReleasePaginationMeta {
@@ -142,6 +161,37 @@ export function addReleaseArtist(releaseId: string, input: ReleaseArtistInput) {
 export function removeReleaseArtist(releaseId: string, artistId: string) {
   return apiRequest<{ message: string }>(
     `/api/v1/releases/${releaseId}/artists/${artistId}`,
+    { method: 'DELETE' },
+  ).then((response) => response.data)
+}
+
+export function createReleaseTrack(
+  releaseId: string,
+  input: ReleaseTrackInput,
+) {
+  return apiRequest<ReleaseTrack>(`/api/v1/releases/${releaseId}/tracks`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  }).then((response) => response.data)
+}
+
+export function updateReleaseTrack(
+  releaseId: string,
+  trackId: string,
+  input: Partial<ReleaseTrackInput>,
+) {
+  return apiRequest<ReleaseTrack>(
+    `/api/v1/releases/${releaseId}/tracks/${trackId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    },
+  ).then((response) => response.data)
+}
+
+export function deleteReleaseTrack(releaseId: string, trackId: string) {
+  return apiRequest<{ message: string }>(
+    `/api/v1/releases/${releaseId}/tracks/${trackId}`,
     { method: 'DELETE' },
   ).then((response) => response.data)
 }

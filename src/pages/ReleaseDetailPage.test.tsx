@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Outlet, RouterProvider, createMemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -8,10 +8,13 @@ import { ReleaseDetailPage } from './ReleaseDetailPage.tsx'
 
 const releaseMocks = vi.hoisted(() => ({
   addReleaseArtist: vi.fn(),
+  createReleaseTrack: vi.fn(),
+  deleteReleaseTrack: vi.fn(),
   getRelease: vi.fn(),
   removeReleaseArtist: vi.fn(),
   updateRelease: vi.fn(),
   updateReleaseCover: vi.fn(),
+  updateReleaseTrack: vi.fn(),
 }))
 
 const artistMocks = vi.hoisted(() => ({
@@ -116,9 +119,12 @@ beforeEach(() => {
   artistMocks.getArtists.mockReset()
   releaseMocks.getRelease.mockReset()
   releaseMocks.addReleaseArtist.mockReset()
+  releaseMocks.createReleaseTrack.mockReset()
+  releaseMocks.deleteReleaseTrack.mockReset()
   releaseMocks.removeReleaseArtist.mockReset()
   releaseMocks.updateRelease.mockReset()
   releaseMocks.updateReleaseCover.mockReset()
+  releaseMocks.updateReleaseTrack.mockReset()
   artistMocks.getArtists.mockResolvedValue({
     data: [
       {
@@ -151,7 +157,26 @@ beforeEach(() => {
     position: 2,
   })
   releaseMocks.removeReleaseArtist.mockResolvedValue({ message: 'Removed' })
+  releaseMocks.createReleaseTrack.mockResolvedValue({
+    id: 'track-3',
+    release_id: 'release-1',
+    position: 3,
+    title: 'New track',
+    duration_ms: null,
+    isrc: null,
+    is_explicit: false,
+  })
+  releaseMocks.deleteReleaseTrack.mockResolvedValue({ message: 'Deleted' })
   releaseMocks.updateRelease.mockResolvedValue(release)
+  releaseMocks.updateReleaseTrack.mockResolvedValue({
+    id: 'track-1',
+    release_id: 'release-1',
+    position: 1,
+    title: 'Updated track',
+    duration_ms: null,
+    isrc: null,
+    is_explicit: false,
+  })
 })
 
 describe('ReleaseDetailPage', () => {
@@ -238,6 +263,92 @@ describe('ReleaseDetailPage', () => {
     expect(releaseMocks.removeReleaseArtist).toHaveBeenCalledWith(
       'release-1',
       'artist-3',
+    )
+  })
+
+  it('creates, edits, sorts and removes tracks for assigned draft releases', async () => {
+    const browserUser = userEvent.setup()
+    releaseMocks.getRelease.mockResolvedValue({
+      ...release,
+      editor_user_ids: ['label-user-1'],
+      tracks: [
+        {
+          id: 'track-1',
+          position: 1,
+          title: 'Arrival',
+          duration_ms: 183000,
+          isrc: 'NOABC2600001',
+          is_explicit: false,
+        },
+        {
+          id: 'track-2',
+          position: 2,
+          title: 'Departure',
+          duration_ms: null,
+          isrc: null,
+          is_explicit: true,
+        },
+      ],
+    })
+
+    renderRelease()
+
+    await screen.findByText('Arrival')
+    await browserUser.type(screen.getByLabelText('Nytt spor'), 'Return')
+    await browserUser.click(
+      screen.getByRole('button', { name: 'Legg til spor' }),
+    )
+
+    const trackTitles = screen.getAllByLabelText('Sportittel')
+    await browserUser.clear(trackTitles[0])
+    await browserUser.type(trackTitles[0], 'Arrival edit')
+    await browserUser.click(
+      screen.getAllByRole('button', { name: 'Lagre spor' })[0],
+    )
+    await browserUser.click(screen.getAllByRole('button', { name: 'Ned' })[0])
+    await browserUser.click(screen.getAllByRole('button', { name: 'Fjern' })[0])
+
+    await waitFor(() =>
+      expect(releaseMocks.createReleaseTrack).toHaveBeenCalledWith(
+        'release-1',
+        {
+          position: 3,
+          title: 'Return',
+          duration_ms: null,
+          isrc: null,
+          is_explicit: false,
+        },
+      ),
+    )
+    expect(releaseMocks.updateReleaseTrack).toHaveBeenCalledWith(
+      'release-1',
+      'track-1',
+      {
+        position: 1,
+        title: 'Arrival edit',
+        duration_ms: 183000,
+        isrc: 'NOABC2600001',
+        is_explicit: false,
+      },
+    )
+    expect(releaseMocks.updateReleaseTrack).toHaveBeenCalledWith(
+      'release-1',
+      'track-1',
+      { position: 3 },
+    )
+    expect(releaseMocks.updateReleaseTrack).toHaveBeenCalledWith(
+      'release-1',
+      'track-2',
+      { position: 1 },
+    )
+    expect(releaseMocks.updateReleaseTrack).toHaveBeenCalledWith(
+      'release-1',
+      'track-1',
+      { position: 2 },
+    )
+    expect(releaseMocks.deleteReleaseTrack).toHaveBeenCalledWith(
+      'release-1',
+      'track-1',
     )
   })
 

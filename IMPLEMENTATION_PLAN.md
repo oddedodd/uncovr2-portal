@@ -108,7 +108,7 @@ Portal feature work begins after the backend-to-portal gate for B0 through B6 pa
 ## P5 — Release builder
 
 - [x] `P5.1` Build release metadata, artist and date forms.
-- [ ] `P5.2` Build sortable track management.
+- [x] `P5.2` Build sortable track management.
 - [ ] `P5.3` Build page management for releases and tracks.
 - [ ] `P5.4` Build the first accessible block-editor interface.
 - [ ] `P5.5` Build media upload, selection, replacement and removal.
