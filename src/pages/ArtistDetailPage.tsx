@@ -37,7 +37,7 @@ function ArtistProfile({
       updateArtist(artist.id, input),
     onSuccess: async (updated) => {
       queryClient.setQueryData(artistKeys.detail(artist.id), updated)
-      await queryClient.invalidateQueries({ queryKey: artistKeys.all })
+      await queryClient.invalidateQueries({ queryKey: artistKeys.lists() })
     },
   })
 
@@ -58,13 +58,13 @@ function ArtistProfile({
   async function uploadLogo(file: File) {
     const updated = await uploadArtistLogo(artist.id, file)
     queryClient.setQueryData(artistKeys.detail(artist.id), updated)
-    await queryClient.invalidateQueries({ queryKey: artistKeys.all })
+    await queryClient.invalidateQueries({ queryKey: artistKeys.lists() })
   }
 
   async function uploadImage(file: File) {
     const updated = await uploadArtistImage(artist.id, file)
     queryClient.setQueryData(artistKeys.detail(artist.id), updated)
-    await queryClient.invalidateQueries({ queryKey: artistKeys.all })
+    await queryClient.invalidateQueries({ queryKey: artistKeys.lists() })
   }
 
   return (

@@ -25,8 +25,14 @@ const artistMocks = vi.hoisted(() => ({
 }))
 
 const mediaMocks = vi.hoisted(() => ({
-  getMediaDownloadUrls: vi.fn(),
   uploadMedia: vi.fn(),
+}))
+
+// Mockes på hook-nivå: mediaDownloadQueryOptions kaller getMediaDownload
+// internt i modulen, så en mock av eksporten ville ikke fanget den opp.
+vi.mock('../features/media/useMediaUrl.ts', () => ({
+  useMediaUrl: () => ({ url: undefined, isPending: false, error: null }),
+  useMediaUrls: () => ({ urls: new Map<string, string>(), isPending: false }),
 }))
 
 vi.mock('../lib/releases.ts', async (importOriginal) => {
@@ -130,7 +136,6 @@ function renderRelease(
 
 beforeEach(() => {
   artistMocks.getArtists.mockReset()
-  mediaMocks.getMediaDownloadUrls.mockReset()
   mediaMocks.uploadMedia.mockReset()
   releaseMocks.getRelease.mockReset()
   releaseMocks.addReleaseArtist.mockReset()
@@ -168,7 +173,6 @@ beforeEach(() => {
       has_more: false,
     },
   })
-  mediaMocks.getMediaDownloadUrls.mockResolvedValue(new Map())
   mediaMocks.uploadMedia.mockResolvedValue({
     id: 'media-1',
     status: 'ready',

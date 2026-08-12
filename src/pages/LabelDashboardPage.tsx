@@ -27,7 +27,9 @@ export function LabelDashboardPage({ workspace }: { workspace: Workspace }) {
       updateOrganization(workspace.id, input),
     onSuccess: async (updated) => {
       queryClient.setQueryData(organizationKeys.detail(workspace.id), updated)
-      await queryClient.invalidateQueries({ queryKey: organizationKeys.all })
+      await queryClient.invalidateQueries({
+        queryKey: organizationKeys.lists(),
+      })
     },
   })
   const canManage = workspace.role === 'label_admin'
@@ -44,7 +46,7 @@ export function LabelDashboardPage({ workspace }: { workspace: Workspace }) {
   async function uploadLogo(file: File) {
     const updated = await uploadOrganizationLogo(workspace.id, file)
     queryClient.setQueryData(organizationKeys.detail(workspace.id), updated)
-    await queryClient.invalidateQueries({ queryKey: organizationKeys.all })
+    await queryClient.invalidateQueries({ queryKey: organizationKeys.lists() })
   }
 
   return (

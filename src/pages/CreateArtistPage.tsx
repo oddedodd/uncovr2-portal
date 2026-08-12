@@ -21,7 +21,7 @@ export function CreateArtistPage() {
     mutationFn: (input: Parameters<typeof onboardArtist>[1]) =>
       onboardArtist(organizationId, input),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: artistKeys.all })
+      await queryClient.invalidateQueries({ queryKey: artistKeys.lists() })
     },
   })
 

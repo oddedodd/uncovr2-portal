@@ -57,10 +57,16 @@ interface ArtistPaginationMeta {
   pagination?: CursorPagination
 }
 
+/**
+ * Som for utgivelser: `all` er et prefiks av `list` og `detail`, så den skal
+ * ikke brukes som invalideringsmål etter en skriving.
+ */
 export const artistKeys = {
   all: ['artists'] as const,
+  lists: () => ['artists', 'list'] as const,
   list: (after?: string, before?: string) =>
     ['artists', 'list', after, before] as const,
+  details: () => ['artists', 'detail'] as const,
   detail: (artistId: string) => ['artists', 'detail', artistId] as const,
 }
 

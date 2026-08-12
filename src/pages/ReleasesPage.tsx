@@ -4,7 +4,7 @@ import { Link, useOutletContext } from 'react-router'
 import { FeedbackBanner } from '../components/FeedbackBanner.tsx'
 import { MediaThumbnail } from '../components/MediaThumbnail.tsx'
 import { formError } from '../features/auth/validation.ts'
-import { getMediaDownloadUrls, mediaKeys } from '../lib/media.ts'
+import { useMediaUrls } from '../features/media/useMediaUrl.ts'
 import type { PortalOutletContext } from '../lib/portal.ts'
 import {
   getReleases,
@@ -101,24 +101,11 @@ export function ReleasesPage() {
       ) ?? [],
     [assignment, ownership, releases.data?.data, user.id, workspace],
   )
-  const coverIds = useMemo(
-    () =>
-      [
-        ...new Set(
-          visibleReleases
-            .map((release) => release.cover_media?.id)
-            .filter((id): id is string => Boolean(id)),
-        ),
-      ].sort(),
-    [visibleReleases],
+  // Utledes fra serversvaret, ikke fra den klientfiltrerte lista: da endrer
+  // ikke et filterbytte hvilke medier som er hentet.
+  const covers = useMediaUrls(
+    releases.data?.data.map((release) => release.cover_media?.id) ?? [],
   )
-  const covers = useQuery({
-    queryKey: mediaKeys.downloads(coverIds),
-    queryFn: () => getMediaDownloadUrls(coverIds),
-    enabled: coverIds.length > 0,
-    retry: false,
-    staleTime: 5 * 60 * 1000,
-  })
 
   if (!workspace) return <WorkspaceSectionPage />
 
@@ -238,7 +225,7 @@ export function ReleasesPage() {
               <li key={release.id}>
                 <MediaThumbnail
                   alt={`Omslag for ${release.title}`}
-                  url={covers.data?.get(release.cover_media?.id ?? '')}
+                  url={covers.urls.get(release.cover_media?.id ?? '')}
                   variant="cover"
                 />
                 <div>

@@ -61,10 +61,16 @@ export interface OrganizationOnboardingResult {
   >
 }
 
+/**
+ * Som for utgivelser og artister: `all` er et prefiks av `list` og `detail`, så
+ * den skal ikke brukes som invalideringsmål etter en skriving.
+ */
 export const organizationKeys = {
   all: ['organizations'] as const,
+  lists: () => ['organizations', 'list'] as const,
   list: (after?: string, before?: string) =>
     ['organizations', 'list', after, before] as const,
+  details: () => ['organizations', 'detail'] as const,
   detail: (organizationId: string) =>
     ['organizations', 'detail', organizationId] as const,
 }

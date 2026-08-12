@@ -90,7 +90,9 @@ export function OrganizationDetailPage() {
       updateOrganization(organizationId, input),
     onSuccess: async (updated) => {
       queryClient.setQueryData(organizationKeys.detail(organizationId), updated)
-      await queryClient.invalidateQueries({ queryKey: organizationKeys.all })
+      await queryClient.invalidateQueries({
+        queryKey: organizationKeys.lists(),
+      })
     },
   })
   const status = useMutation({
@@ -100,7 +102,7 @@ export function OrganizationDetailPage() {
       queryClient.setQueryData(organizationKeys.detail(organizationId), updated)
       setConfirmingStatus(false)
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: organizationKeys.all }),
+        queryClient.invalidateQueries({ queryKey: organizationKeys.lists() }),
         queryClient.invalidateQueries({ queryKey: platformKeys.overview }),
       ])
     },
@@ -128,7 +130,7 @@ export function OrganizationDetailPage() {
   async function uploadLogo(file: File) {
     const updated = await uploadOrganizationLogo(organizationId, file)
     queryClient.setQueryData(organizationKeys.detail(organizationId), updated)
-    await queryClient.invalidateQueries({ queryKey: organizationKeys.all })
+    await queryClient.invalidateQueries({ queryKey: organizationKeys.lists() })
   }
 
   if (organization.isPending) {

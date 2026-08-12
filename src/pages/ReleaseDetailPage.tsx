@@ -6,10 +6,10 @@ import { FormField } from '../components/FormField.tsx'
 import { ImageUploadField } from '../components/ImageUploadField.tsx'
 import { SubmitButton } from '../components/SubmitButton.tsx'
 import { fieldError, formError } from '../features/auth/validation.ts'
+import { useDebouncedValue } from '../features/media/useDebouncedValue.ts'
+import { useMediaUrl } from '../features/media/useMediaUrl.ts'
 import { artistKeys, getArtists } from '../lib/artists.ts'
 import {
-  getMediaDownloadUrls,
-  mediaKeys,
   uploadMedia,
   type MediaKind,
   type MediaOwnerType,
@@ -28,6 +28,7 @@ import {
   updateReleasePage,
   updateRelease,
   updateReleaseCover,
+  type Release,
   type ReleaseContentPage,
   type ReleaseContentBlock,
   type ReleaseContentBlockInput,
@@ -196,13 +197,10 @@ function ContentBlockForm({
   const [uploadNotice, setUploadNotice] = useState<string | null>(null)
   const text = block ? blockTextValue(block) : ''
   const showsMediaFields = ['image', 'gallery', 'video'].includes(type)
-  const mediaDownload = useQuery({
-    queryKey: mediaKeys.downloads(mediaId ? [mediaId] : []),
-    queryFn: () => getMediaDownloadUrls(mediaId ? [mediaId] : []),
-    enabled: Boolean(mediaId),
-    retry: false,
-    staleTime: 5 * 60 * 1000,
-  })
+  // Feltet mater query-nøkkelen direkte, så uten debounce blir hvert
+  // tastetrykk et kall. Lagrede blokker treffer initialverdien og vises straks.
+  const settledMediaId = useDebouncedValue(mediaId.trim(), 400)
+  const mediaPreview = useMediaUrl(settledMediaId || null)
   const mediaUpload = useMutation({
     mutationFn: (file: File) =>
       uploadMedia(ownerType, ownerId, mediaKindForBlock(type), file),
@@ -211,7 +209,7 @@ function ContentBlockForm({
       setUploadNotice('Media er lastet opp. Lagre blokken for å bruke den.')
     },
   })
-  const mediaUrl = mediaId ? mediaDownload.data?.get(mediaId) : undefined
+  const mediaUrl = mediaPreview.url
 
   return (
     <Form className="content-block-form" method="post" onSubmit={onSubmit}>
@@ -322,7 +320,7 @@ function ContentBlockForm({
             error={fieldError(mediaUpload.error, 'media_id')}
             label="Media ID"
             name="media_id"
-            onChange={(event) => setMediaId(event.currentTarget.value.trim())}
+            onChange={(event) => setMediaId(event.currentTarget.value)}
             required={type !== 'video'}
             value={mediaId}
           />
@@ -423,6 +421,18 @@ function ContentBlockForm({
   )
 }
 
+/**
+ * PATCH-svarene fra Laravel er typet med `pages` som valgfri. Erstattes hele
+ * cache-oppføringen, forsvinner sider og blokker fra sideredigereren dersom
+ * svaret utelater dem. Derfor merges det inn i stedet.
+ */
+function mergeReleaseDetail(updated: Release) {
+  return (previous: Release | undefined): Release =>
+    previous
+      ? { ...previous, ...updated, pages: updated.pages ?? previous.pages }
+      : updated
+}
+
 export function ReleaseDetailPage() {
   const { releaseId = '' } = useParams()
   const { user, workspace } = useOutletContext<PortalOutletContext>()
@@ -437,16 +447,22 @@ export function ReleaseDetailPage() {
     mutationFn: (input: ReleaseMetadataInput) =>
       updateRelease(releaseId, input),
     onSuccess: async (updated) => {
-      queryClient.setQueryData(releaseKeys.detail(updated.id), updated)
-      await queryClient.invalidateQueries({ queryKey: releaseKeys.all })
+      queryClient.setQueryData(
+        releaseKeys.detail(updated.id),
+        mergeReleaseDetail(updated),
+      )
+      await queryClient.invalidateQueries({ queryKey: releaseKeys.lists() })
     },
   })
   const artists = useQuery({
     queryKey: artistKeys.list(),
     queryFn: () => getArtists(),
-    enabled: Boolean(release.data) && Boolean(workspace),
+    // Artistlista har ingen dataavhengighet til releasen, så den skal ikke
+    // vente på den.
+    enabled: Boolean(workspace),
     retry: false,
   })
+  // Artistkoblinger vises også i listeradene, så begge må invalideres.
   const addArtist = useMutation({
     mutationFn: (input: ReleaseArtistInput) =>
       addReleaseArtist(releaseId, input),
@@ -455,7 +471,7 @@ export function ReleaseDetailPage() {
         queryClient.invalidateQueries({
           queryKey: releaseKeys.detail(releaseId),
         }),
-        queryClient.invalidateQueries({ queryKey: releaseKeys.all }),
+        queryClient.invalidateQueries({ queryKey: releaseKeys.lists() }),
       ])
     },
   })
@@ -466,20 +482,19 @@ export function ReleaseDetailPage() {
         queryClient.invalidateQueries({
           queryKey: releaseKeys.detail(releaseId),
         }),
-        queryClient.invalidateQueries({ queryKey: releaseKeys.all }),
+        queryClient.invalidateQueries({ queryKey: releaseKeys.lists() }),
       ])
     },
   })
+  // Sider og blokker vises aldri i listevisningen, så kun detaljen trenger å
+  // hentes på nytt.
   const createPage = useMutation({
     mutationFn: (input: ReleasePageInput) =>
       createReleasePage(releaseId, input),
     onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: releaseKeys.detail(releaseId),
-        }),
-        queryClient.invalidateQueries({ queryKey: releaseKeys.all }),
-      ])
+      await queryClient.invalidateQueries({
+        queryKey: releaseKeys.detail(releaseId),
+      })
     },
   })
   const updatePage = useMutation({
@@ -491,23 +506,17 @@ export function ReleaseDetailPage() {
       input: Partial<ReleasePageInput>
     }) => updateReleasePage(pageId, input),
     onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: releaseKeys.detail(releaseId),
-        }),
-        queryClient.invalidateQueries({ queryKey: releaseKeys.all }),
-      ])
+      await queryClient.invalidateQueries({
+        queryKey: releaseKeys.detail(releaseId),
+      })
     },
   })
   const deletePage = useMutation({
     mutationFn: deleteReleasePage,
     onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: releaseKeys.detail(releaseId),
-        }),
-        queryClient.invalidateQueries({ queryKey: releaseKeys.all }),
-      ])
+      await queryClient.invalidateQueries({
+        queryKey: releaseKeys.detail(releaseId),
+      })
     },
   })
   const createBlock = useMutation({
@@ -551,7 +560,10 @@ export function ReleaseDetailPage() {
   })
 
   if (release.isPending) return <p aria-live="polite">Henter utgivelsen …</p>
-  if (release.isError || !release.data || !workspace) {
+  // Releasen og arbeidsområdene hentes parallelt. Uten denne kan et raskt
+  // release-svar rekke å rendre feilbanneret før arbeidsområdene har landet.
+  if (!workspace) return null
+  if (release.isError || !release.data) {
     return (
       <FeedbackBanner title="Kunne ikke hente utgivelsen" tone="error">
         {formError(release.error)}
@@ -569,8 +581,11 @@ export function ReleaseDetailPage() {
 
   async function attach(coverMediaId: string | null) {
     const updated = await updateReleaseCover(current.id, coverMediaId)
-    queryClient.setQueryData(releaseKeys.detail(current.id), updated)
-    await queryClient.invalidateQueries({ queryKey: releaseKeys.all })
+    queryClient.setQueryData(
+      releaseKeys.detail(current.id),
+      mergeReleaseDetail(updated),
+    )
+    await queryClient.invalidateQueries({ queryKey: releaseKeys.lists() })
   }
 
   function handleMetadataSubmit(event: React.FormEvent<HTMLFormElement>) {

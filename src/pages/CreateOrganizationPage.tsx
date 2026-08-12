@@ -16,7 +16,7 @@ export function CreateOrganizationPage() {
     mutationFn: onboardOrganization,
     onSuccess: async (result) => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: organizationKeys.all }),
+        queryClient.invalidateQueries({ queryKey: organizationKeys.lists() }),
         queryClient.invalidateQueries({ queryKey: platformKeys.overview }),
       ])
       navigate(`/labels/${result.organization.id}`, {

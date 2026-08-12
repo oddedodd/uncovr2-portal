@@ -1,11 +1,11 @@
 import { Navigate, Outlet, useLocation } from 'react-router'
 import { ApiError } from '../lib/api.ts'
 import { FeedbackBanner } from './FeedbackBanner.tsx'
-import { useCurrentUser } from '../features/auth/useCurrentUser.ts'
+import { useAuthBootstrap } from '../features/auth/useAuthBootstrap.ts'
 
 export function RequireAuth() {
   const location = useLocation()
-  const user = useCurrentUser()
+  const user = useAuthBootstrap()
 
   if (user.isPending) {
     return (

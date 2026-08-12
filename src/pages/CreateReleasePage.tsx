@@ -34,7 +34,7 @@ export function CreateReleasePage() {
     mutationFn: createRelease,
     onSuccess: async (release) => {
       queryClient.setQueryData(releaseKeys.detail(release.id), release)
-      await queryClient.invalidateQueries({ queryKey: releaseKeys.all })
+      await queryClient.invalidateQueries({ queryKey: releaseKeys.lists() })
       navigate(`/releases/${release.id}`)
     },
   })

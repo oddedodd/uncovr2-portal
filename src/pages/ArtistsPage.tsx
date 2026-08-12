@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Link, useOutletContext } from 'react-router'
 import { FeedbackBanner } from '../components/FeedbackBanner.tsx'
 import { MediaThumbnail } from '../components/MediaThumbnail.tsx'
 import { formError } from '../features/auth/validation.ts'
+import { useMediaUrls } from '../features/media/useMediaUrl.ts'
 import { artistKeys, getArtists, type Artist } from '../lib/artists.ts'
-import { getMediaDownloadUrls, mediaKeys } from '../lib/media.ts'
 import type { PortalOutletContext } from '../lib/portal.ts'
 import { WorkspaceSectionPage } from './WorkspaceSectionPage.tsx'
 
@@ -42,27 +42,11 @@ export function ArtistsPage() {
     queryFn: () => getArtists(cursor),
     retry: false,
   })
-  const imageIds = useMemo(
-    () =>
-      [
-        ...new Set(
-          artists.data?.data
-            .map(
-              (artist) =>
-                (artist.profile.logo_media ?? artist.profile.image_media)?.id,
-            )
-            .filter((id): id is string => Boolean(id)) ?? [],
-        ),
-      ].sort(),
-    [artists.data?.data],
+  const images = useMediaUrls(
+    artists.data?.data.map(
+      (artist) => (artist.profile.logo_media ?? artist.profile.image_media)?.id,
+    ) ?? [],
   )
-  const images = useQuery({
-    queryKey: mediaKeys.downloads(imageIds),
-    queryFn: () => getMediaDownloadUrls(imageIds),
-    enabled: imageIds.length > 0,
-    retry: false,
-    staleTime: 5 * 60 * 1000,
-  })
 
   if (!workspace) return <WorkspaceSectionPage />
 
@@ -118,7 +102,7 @@ export function ArtistsPage() {
             {artists.data.data.map((artist) => (
               <ArtistRow
                 artist={artist}
-                imageUrl={images.data?.get(
+                imageUrl={images.urls.get(
                   (artist.profile.logo_media ?? artist.profile.image_media)
                     ?.id ?? '',
                 )}

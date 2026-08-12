@@ -1,3 +1,4 @@
+import { queryOptions } from '@tanstack/react-query'
 import { apiRequest } from './api.ts'
 
 export type MediaOwnerType = 'organization' | 'artist'
@@ -23,20 +24,114 @@ interface MediaDownloads {
   items: Array<{ media_id: string; url: string }>
 }
 
-export const mediaKeys = {
-  downloads: (mediaIds: string[]) =>
-    ['media', 'downloads', [...mediaIds].sort()] as const,
+export interface MediaDownload {
+  url: string
+  /** Epoch-millisekundet der den signerte URL-en slutter å virke. */
+  expiresAt: number
 }
 
-export async function getMediaDownloadUrls(mediaIds: string[]) {
-  if (mediaIds.length === 0) return new Map<string, string>()
+export const mediaKeys = {
+  all: ['media'] as const,
+  download: (mediaId: string) => ['media', 'download', mediaId] as const,
+}
 
-  const response = await apiRequest<MediaDownloads>('/api/v1/media/downloads', {
-    method: 'POST',
-    body: JSON.stringify({ media_ids: [...new Set(mediaIds)] }),
+/**
+ * Kall som ber om en medie-URL i samme commit deler én
+ * POST /api/v1/media/downloads. Laravel svarer med en CORS-preflight per POST,
+ * så batchen sparer flere rundturer enn forespørselskroppen antyder.
+ */
+const batchWindowMs = 12
+const maximumBatchSize = 50
+
+interface DownloadWaiter {
+  resolve: (value: MediaDownload | null) => void
+  reject: (error: unknown) => void
+}
+
+const waitingDownloads = new Map<string, DownloadWaiter[]>()
+let downloadFlushTimer: ReturnType<typeof setTimeout> | undefined
+
+async function flushDownloads() {
+  if (downloadFlushTimer) clearTimeout(downloadFlushTimer)
+  downloadFlushTimer = undefined
+
+  const batch = new Map(waitingDownloads)
+  // Tømmes synkront før await, slik at kall som kommer mens forespørselen er
+  // underveis starter en ny batch i stedet for å vente på en som er sendt.
+  waitingDownloads.clear()
+  if (batch.size === 0) return
+
+  try {
+    const response = await apiRequest<MediaDownloads>(
+      '/api/v1/media/downloads',
+      {
+        method: 'POST',
+        body: JSON.stringify({ media_ids: [...batch.keys()] }),
+      },
+    )
+    const expiresAt = Date.now() + response.data.expires_in * 1000
+    const urls = new Map(
+      response.data.items.map((item) => [item.media_id, item.url]),
+    )
+
+    for (const [mediaId, waiters] of batch) {
+      const url = urls.get(mediaId)
+      // En id uten URL gir null i stedet for feil: én slettet id skal ikke
+      // tømme forhåndsvisningen til alle de andre i samme batch.
+      const value = url ? { url, expiresAt } : null
+      for (const waiter of waiters) waiter.resolve(value)
+    }
+  } catch (error) {
+    for (const waiters of batch.values()) {
+      for (const waiter of waiters) waiter.reject(error)
+    }
+  }
+}
+
+export function getMediaDownload(
+  mediaId: string,
+): Promise<MediaDownload | null> {
+  return new Promise((resolve, reject) => {
+    const waiters = waitingDownloads.get(mediaId)
+    if (waiters) waiters.push({ resolve, reject })
+    else waitingDownloads.set(mediaId, [{ resolve, reject }])
+
+    if (waitingDownloads.size >= maximumBatchSize) void flushDownloads()
+    else
+      downloadFlushTimer ??= setTimeout(
+        () => void flushDownloads(),
+        batchWindowMs,
+      )
   })
+}
 
-  return new Map(response.data.items.map((item) => [item.media_id, item.url]))
+/** Hent en ny signert URL så lenge før den utløper. */
+const expiryMarginMs = 60_000
+
+/**
+ * gcTime må være minst like lang som staleTime, og aldri lengre enn
+ * expires_in fra Laravel. Ellers kan en remontering vise en død URL i én frame
+ * før bakgrunnshentingen erstatter den. Juster sammen med backend.
+ */
+const downloadGcTimeMs = 9 * 60 * 1000
+
+export function mediaDownloadQueryOptions(mediaId: string) {
+  return queryOptions({
+    queryKey: mediaKeys.download(mediaId),
+    queryFn: () => getMediaDownload(mediaId),
+    retry: false,
+    staleTime: (query) => {
+      const data = query.state.data
+      if (!data) return 0
+      // staleTime måles fra dataUpdatedAt, så gjenværende levetid uttrykkes
+      // relativt til tidspunktet Laravel ga oss URL-en.
+      return Math.max(
+        0,
+        data.expiresAt - query.state.dataUpdatedAt - expiryMarginMs,
+      )
+    },
+    gcTime: downloadGcTimeMs,
+  })
 }
 
 export async function deleteMedia(mediaId: string) {

@@ -1,10 +1,10 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { formError } from '../features/auth/validation.ts'
+import { useMediaUrl } from '../features/media/useMediaUrl.ts'
 import { ApiError } from '../lib/api.ts'
 import {
   deleteMedia,
-  getMediaDownloadUrls,
   mediaKeys,
   uploadImage,
   type MediaOwnerType,
@@ -36,14 +36,9 @@ export function ImageUploadField({
   onUpload?: (file: File) => Promise<void>
 }) {
   const inputId = useId()
+  const queryClient = useQueryClient()
   const [notice, setNotice] = useState<string | null>(null)
-  const download = useQuery({
-    queryKey: mediaKeys.downloads(media ? [media.id] : []),
-    queryFn: () => getMediaDownloadUrls(media ? [media.id] : []),
-    enabled: Boolean(media?.id),
-    retry: false,
-    staleTime: 5 * 60 * 1000,
-  })
+  const preview = useMediaUrl(media?.id)
   const mutation = useMutation({
     mutationFn: async (file: File) => {
       if (onUpload) {
@@ -70,9 +65,16 @@ export function ImageUploadField({
       await onAttach(null)
       await deleteMedia(media.id).catch(() => undefined)
     },
-    onSuccess: () => setNotice('Bildet er fjernet.'),
+    onSuccess: () => {
+      // Uten dette blir den slettede id-en liggende i cachen med en URL som
+      // fortsatt ser gyldig ut.
+      if (media) {
+        queryClient.removeQueries({ queryKey: mediaKeys.download(media.id) })
+      }
+      setNotice('Bildet er fjernet.')
+    },
   })
-  const imageUrl = media ? download.data?.get(media.id) : undefined
+  const imageUrl = preview.url
   const busy = mutation.isPending || remove.isPending
 
   return (
@@ -81,7 +83,7 @@ export function ImageUploadField({
         {imageUrl ? (
           <img alt={`${label} – nåværende bilde`} src={imageUrl} />
         ) : (
-          <span>{download.isPending ? 'Henter …' : 'Ingen bilde'}</span>
+          <span>{preview.isPending ? 'Henter …' : 'Ingen bilde'}</span>
         )}
       </div>
       <div className="image-field__content">
@@ -94,12 +96,12 @@ export function ImageUploadField({
             </small>
           ) : null}
         </div>
-        {download.isError ? (
+        {preview.error ? (
           <FeedbackBanner
             title="Forhåndsvisningen kunne ikke hentes"
             tone="error"
           >
-            {formError(download.error)}
+            {formError(preview.error)}
           </FeedbackBanner>
         ) : null}
         {mutation.isError || remove.isError ? (

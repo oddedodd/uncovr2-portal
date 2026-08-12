@@ -121,12 +121,19 @@ interface ReleasePaginationMeta {
   pagination?: CursorPagination
 }
 
+/**
+ * `all` er et prefiks av både `list` og `detail`, og invalidateQueries matcher
+ * på prefiks. Bruk derfor `lists()` eller `detail()` etter en skriving — `all`
+ * er kun for å tømme alt, som ved utlogging eller bytte av arbeidsområde.
+ */
 export const releaseKeys = {
   all: ['releases'] as const,
+  lists: () => ['releases', 'list'] as const,
   list: (
     cursor: { after?: string; before?: string } = {},
     filters: ReleaseListFilters = {},
   ) => ['releases', 'list', cursor.after, cursor.before, filters] as const,
+  details: () => ['releases', 'detail'] as const,
   detail: (releaseId: string) => ['releases', 'detail', releaseId] as const,
 }
 

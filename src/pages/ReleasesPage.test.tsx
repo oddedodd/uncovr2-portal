@@ -16,13 +16,11 @@ vi.mock('../lib/releases.ts', async (importOriginal) => {
   return { ...original, ...releaseMocks }
 })
 
-vi.mock('../lib/media.ts', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../lib/media.ts')>()
-  return {
-    ...original,
-    getMediaDownloadUrls: vi.fn().mockResolvedValue(new Map()),
-  }
-})
+// Mockes på hook-nivå: mediaDownloadQueryOptions kaller getMediaDownload
+// internt i modulen, så en mock av eksporten ville ikke fanget den opp.
+vi.mock('../features/media/useMediaUrl.ts', () => ({
+  useMediaUrls: () => ({ urls: new Map<string, string>(), isPending: false }),
+}))
 
 const user: CurrentUser = {
   id: 'user-1',

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getMediaDownloadUrls, uploadImage, uploadMedia } from './media.ts'
+import { getMediaDownload, uploadImage, uploadMedia } from './media.ts'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -102,7 +102,7 @@ describe('media API', () => {
     )
   })
 
-  it('gets temporary download URLs in one Laravel request', async () => {
+  it('gets a temporary download URL in one Laravel request', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({
         expires_in: 600,
@@ -110,9 +110,9 @@ describe('media API', () => {
       }),
     )
 
-    const urls = await getMediaDownloadUrls(['media-1'])
+    const download = await getMediaDownload('media-1')
 
-    expect(urls.get('media-1')).toBe('https://signed.example/1')
+    expect(download?.url).toBe('https://signed.example/1')
     expect(fetchMock).toHaveBeenCalledWith(
       new URL('http://localhost:8000/api/v1/media/downloads'),
       expect.objectContaining({
@@ -120,5 +120,46 @@ describe('media API', () => {
         body: JSON.stringify({ media_ids: ['media-1'] }),
       }),
     )
+  })
+
+  it('coalesces concurrent lookups into one Laravel request', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        expires_in: 600,
+        items: [
+          { media_id: 'media-1', url: 'https://signed.example/1' },
+          { media_id: 'media-2', url: 'https://signed.example/2' },
+        ],
+      }),
+    )
+
+    const [first, second, missing] = await Promise.all([
+      getMediaDownload('media-1'),
+      getMediaDownload('media-2'),
+      getMediaDownload('media-3'),
+    ])
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      body: JSON.stringify({ media_ids: ['media-1', 'media-2', 'media-3'] }),
+    })
+    expect(first?.url).toBe('https://signed.example/1')
+    expect(second?.url).toBe('https://signed.example/2')
+    // En id uten treff skal gi null, ikke feile hele batchen.
+    expect(missing).toBeNull()
+  })
+
+  it('reports how long a signed URL stays valid', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        expires_in: 600,
+        items: [{ media_id: 'media-1', url: 'https://signed.example/1' }],
+      }),
+    )
+
+    const before = Date.now()
+    const download = await getMediaDownload('media-1')
+
+    expect(download?.expiresAt).toBeGreaterThanOrEqual(before + 600_000)
   })
 })
