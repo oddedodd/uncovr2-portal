@@ -1,26 +1,94 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { type ChangeEvent, useMemo, useState } from 'react'
 import { Link, useOutletContext } from 'react-router'
 import { FeedbackBanner } from '../components/FeedbackBanner.tsx'
 import { MediaThumbnail } from '../components/MediaThumbnail.tsx'
 import { formError } from '../features/auth/validation.ts'
 import { getMediaDownloadUrls, mediaKeys } from '../lib/media.ts'
 import type { PortalOutletContext } from '../lib/portal.ts'
-import { getReleases, releaseKeys } from '../lib/releases.ts'
+import {
+  getReleases,
+  releaseKeys,
+  type Release,
+  type ReleaseListFilters,
+} from '../lib/releases.ts'
 import { WorkspaceSectionPage } from './WorkspaceSectionPage.tsx'
 
 type CursorState = { after?: string; before?: string }
+type OwnershipFilter = 'all' | 'current' | 'organization' | 'artist'
+type AssignmentFilter = 'all' | 'assigned-to-me' | 'not-assigned-to-me'
+
+const statusOptions = [
+  { value: '', label: 'Alle statuser' },
+  { value: 'draft', label: 'Utkast' },
+  { value: 'review', label: 'Til vurdering' },
+  { value: 'scheduled', label: 'Planlagt' },
+  { value: 'published', label: 'Publisert' },
+  { value: 'unpublished', label: 'Avpublisert' },
+  { value: 'archived', label: 'Arkivert' },
+]
+
+const ownershipOptions: Array<{ value: OwnershipFilter; label: string }> = [
+  { value: 'all', label: 'Alle eiere' },
+  { value: 'current', label: 'Dette arbeidsområdet' },
+  { value: 'organization', label: 'Label-eide' },
+  { value: 'artist', label: 'Artist-eide' },
+]
+
+const assignmentOptions: Array<{ value: AssignmentFilter; label: string }> = [
+  { value: 'all', label: 'Alle tildelinger' },
+  { value: 'assigned-to-me', label: 'Tildelt meg' },
+  { value: 'not-assigned-to-me', label: 'Ikke tildelt meg' },
+]
+
+function releaseMatchesOwnership(
+  release: Release,
+  filter: OwnershipFilter,
+  workspace: PortalOutletContext['workspace'],
+) {
+  if (filter === 'all') return true
+  if (filter === 'current') {
+    return (
+      release.owner.type === workspace?.type &&
+      release.owner.id === workspace.id
+    )
+  }
+  return release.owner.type === filter
+}
+
+function releaseMatchesAssignment(
+  release: Release,
+  filter: AssignmentFilter,
+  userId: string,
+) {
+  const assignedToUser = release.editor_user_ids.includes(userId)
+  if (filter === 'assigned-to-me') return assignedToUser
+  if (filter === 'not-assigned-to-me') return !assignedToUser
+  return true
+}
 
 export function ReleasesPage() {
-  const { workspace } = useOutletContext<PortalOutletContext>()
+  const { user, workspace } = useOutletContext<PortalOutletContext>()
   const [cursor, setCursor] = useState<CursorState>({})
+  const [serverFilters, setServerFilters] = useState<ReleaseListFilters>({})
+  const [ownership, setOwnership] = useState<OwnershipFilter>('all')
+  const [assignment, setAssignment] = useState<AssignmentFilter>('all')
   const releases = useQuery({
-    queryKey: releaseKeys.list(cursor.after, cursor.before),
-    queryFn: () => getReleases(cursor),
+    queryKey: releaseKeys.list(cursor, serverFilters),
+    queryFn: () => getReleases(cursor, serverFilters),
     retry: false,
   })
+  const visibleReleases = useMemo(
+    () =>
+      releases.data?.data.filter(
+        (release) =>
+          releaseMatchesOwnership(release, ownership, workspace) &&
+          releaseMatchesAssignment(release, assignment, user.id),
+      ) ?? [],
+    [assignment, ownership, releases.data?.data, user.id, workspace],
+  )
   const coverIds =
-    releases.data?.data
+    visibleReleases
       .map((release) => release.cover_media?.id)
       .filter((id): id is string => Boolean(id)) ?? []
   const covers = useQuery({
@@ -32,6 +100,22 @@ export function ReleasesPage() {
   })
 
   if (!workspace) return <WorkspaceSectionPage />
+
+  function updateStatus(event: ChangeEvent<HTMLSelectElement>) {
+    const status = event.target.value
+    setCursor({})
+    setServerFilters((current) => ({ ...current, status: status || undefined }))
+  }
+
+  function updateOwnership(event: ChangeEvent<HTMLSelectElement>) {
+    setCursor({})
+    setOwnership(event.target.value as OwnershipFilter)
+  }
+
+  function updateAssignment(event: ChangeEvent<HTMLSelectElement>) {
+    setCursor({})
+    setAssignment(event.target.value as AssignmentFilter)
+  }
 
   return (
     <>
@@ -61,15 +145,63 @@ export function ReleasesPage() {
             {releases.isFetching ? 'Oppdaterer …' : 'Oppdater'}
           </button>
         </div>
+        <div className="release-filters" aria-label="Filtrer utgivelser">
+          <div className="form-field">
+            <label htmlFor="release-status-filter">Status</label>
+            <select
+              id="release-status-filter"
+              onChange={updateStatus}
+              value={serverFilters.status ?? ''}
+            >
+              {statusOptions.map((option) => (
+                <option key={option.value || 'all'} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-field">
+            <label htmlFor="release-ownership-filter">Eierskap</label>
+            <select
+              id="release-ownership-filter"
+              onChange={updateOwnership}
+              value={ownership}
+            >
+              {ownershipOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-field">
+            <label htmlFor="release-assignment-filter">Tildeling</label>
+            <select
+              id="release-assignment-filter"
+              onChange={updateAssignment}
+              value={assignment}
+            >
+              {assignmentOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
         {releases.isPending ? (
           <p aria-live="polite">Henter utgivelser …</p>
         ) : releases.data?.data.length === 0 ? (
           <div className="inline-empty">
             Ingen utgivelser er opprettet ennå.
           </div>
+        ) : visibleReleases.length === 0 ? (
+          <div className="inline-empty">
+            Ingen utgivelser matcher filtrene på denne siden.
+          </div>
         ) : releases.data ? (
           <ul className="release-list">
-            {releases.data.data.map((release) => (
+            {visibleReleases.map((release) => (
               <li key={release.id}>
                 <MediaThumbnail
                   alt={`Omslag for ${release.title}`}

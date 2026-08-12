@@ -1125,6 +1125,13 @@
   list-style: none;
 }
 
+.release-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-top: 1.25rem;
+}
+
 .release-list li {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -1801,6 +1808,10 @@
   .release-list .status-pill {
     grid-column: 2;
     justify-self: start;
+  }
+
+  .release-filters {
+    grid-template-columns: 1fr;
   }
 
   .resource-form-actions,

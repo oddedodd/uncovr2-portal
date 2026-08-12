@@ -30,23 +30,36 @@ export interface ReleasePage {
   pagination: CursorPagination
 }
 
+export interface ReleaseListFilters {
+  search?: string
+  status?: string
+  type?: string
+}
+
 interface ReleasePaginationMeta {
   pagination?: CursorPagination
 }
 
 export const releaseKeys = {
   all: ['releases'] as const,
-  list: (after?: string, before?: string) =>
-    ['releases', 'list', after, before] as const,
+  list: (
+    cursor: { after?: string; before?: string } = {},
+    filters: ReleaseListFilters = {},
+  ) => ['releases', 'list', cursor.after, cursor.before, filters] as const,
   detail: (releaseId: string) => ['releases', 'detail', releaseId] as const,
 }
 
 export async function getReleases(
   cursor: { after?: string; before?: string } = {},
+  filters: ReleaseListFilters = {},
 ): Promise<ReleasePage> {
   const params = new URLSearchParams({ 'page[size]': '25' })
   if (cursor.after) params.set('page[after]', cursor.after)
   if (cursor.before) params.set('page[before]', cursor.before)
+  if (filters.search?.trim())
+    params.set('filter[search]', filters.search.trim())
+  if (filters.status) params.set('filter[status]', filters.status)
+  if (filters.type) params.set('filter[type]', filters.type)
   const response = await apiRequest<Release[]>(
     `/api/v1/releases?${params.toString()}`,
   )

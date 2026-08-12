@@ -24,6 +24,24 @@ describe('release API', () => {
     )
   })
 
+  it('sends supported release list filters to Laravel', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ data: [], meta: { pagination: {} } }))
+
+    await getReleases(
+      { after: 'cursor-next' },
+      { search: ' Signal ', status: 'published', type: 'single' },
+    )
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL(
+        'http://localhost:8000/api/v1/releases?page%5Bsize%5D=25&page%5Bafter%5D=cursor-next&filter%5Bsearch%5D=Signal&filter%5Bstatus%5D=published&filter%5Btype%5D=single',
+      ),
+      expect.objectContaining({ credentials: 'include' }),
+    )
+  })
+
   it('attaches an album cover by media ID', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
