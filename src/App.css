@@ -1275,6 +1275,73 @@
   grid-column: 1 / -1;
 }
 
+.page-management-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.page-management-grid h3,
+.track-page-group h4,
+.track-page-group p {
+  margin: 0;
+}
+
+.page-management-grid h3 {
+  margin-bottom: 0.75rem;
+}
+
+.page-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.page-list li {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.page-row-form,
+.page-create-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(6rem, 8rem);
+  gap: 0.75rem;
+}
+
+.page-create-form {
+  margin-top: 1rem;
+}
+
+.page-row-form__actions,
+.page-create-form .button {
+  grid-column: 1 / -1;
+}
+
+.page-row-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.track-page-group {
+  display: grid;
+  gap: 0.75rem;
+  padding-bottom: 1rem;
+}
+
+.track-page-group + .track-page-group {
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.track-page-group p {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
 .resource-form-page {
   display: grid;
   max-width: 50rem;
@@ -1949,6 +2016,12 @@
 
   .track-create-form,
   .track-edit-form {
+    grid-template-columns: 1fr;
+  }
+
+  .page-management-grid,
+  .page-row-form,
+  .page-create-form {
     grid-template-columns: 1fr;
   }
 

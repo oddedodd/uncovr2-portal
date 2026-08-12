@@ -2,12 +2,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   addReleaseArtist,
   createRelease,
+  createReleasePage,
   createReleaseTrack,
   deleteReleaseTrack,
+  createTrackPage,
+  deleteReleasePage,
   getReleases,
   removeReleaseArtist,
   updateRelease,
   updateReleaseCover,
+  updateReleasePage,
   updateReleaseTrack,
 } from './releases.ts'
 
@@ -231,6 +235,51 @@ describe('release API', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       new URL('http://localhost:8000/api/v1/releases/release-1/tracks/track-1'),
+      expect.objectContaining({ method: 'DELETE' }),
+    )
+  })
+
+  it('creates release and track pages through Laravel', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(() => Promise.resolve(jsonResponse({ data: {} })))
+
+    await createReleasePage('release-1', { position: 1, title: 'Story' })
+    await createTrackPage('track-1', { position: 1, title: 'Lyrics' })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL('http://localhost:8000/api/v1/releases/release-1/pages'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ position: 1, title: 'Story' }),
+      }),
+    )
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL('http://localhost:8000/api/v1/tracks/track-1/pages'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ position: 1, title: 'Lyrics' }),
+      }),
+    )
+  })
+
+  it('updates and deletes pages through Laravel', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(() => Promise.resolve(jsonResponse({ data: {} })))
+
+    await updateReleasePage('page-1', { position: 2, title: null })
+    await deleteReleasePage('page-1')
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL('http://localhost:8000/api/v1/pages/page-1'),
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ position: 2, title: null }),
+      }),
+    )
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL('http://localhost:8000/api/v1/pages/page-1'),
       expect.objectContaining({ method: 'DELETE' }),
     )
   })

@@ -8,10 +8,14 @@ import { ReleaseDetailPage } from './ReleaseDetailPage.tsx'
 
 const releaseMocks = vi.hoisted(() => ({
   addReleaseArtist: vi.fn(),
+  createReleasePage: vi.fn(),
   createReleaseTrack: vi.fn(),
+  createTrackPage: vi.fn(),
+  deleteReleasePage: vi.fn(),
   deleteReleaseTrack: vi.fn(),
   getRelease: vi.fn(),
   removeReleaseArtist: vi.fn(),
+  updateReleasePage: vi.fn(),
   updateRelease: vi.fn(),
   updateReleaseCover: vi.fn(),
   updateReleaseTrack: vi.fn(),
@@ -119,9 +123,13 @@ beforeEach(() => {
   artistMocks.getArtists.mockReset()
   releaseMocks.getRelease.mockReset()
   releaseMocks.addReleaseArtist.mockReset()
+  releaseMocks.createReleasePage.mockReset()
   releaseMocks.createReleaseTrack.mockReset()
+  releaseMocks.createTrackPage.mockReset()
+  releaseMocks.deleteReleasePage.mockReset()
   releaseMocks.deleteReleaseTrack.mockReset()
   releaseMocks.removeReleaseArtist.mockReset()
+  releaseMocks.updateReleasePage.mockReset()
   releaseMocks.updateRelease.mockReset()
   releaseMocks.updateReleaseCover.mockReset()
   releaseMocks.updateReleaseTrack.mockReset()
@@ -167,7 +175,26 @@ beforeEach(() => {
     is_explicit: false,
   })
   releaseMocks.deleteReleaseTrack.mockResolvedValue({ message: 'Deleted' })
+  releaseMocks.createReleasePage.mockResolvedValue({
+    id: 'page-3',
+    parent: { type: 'release', id: 'release-1' },
+    position: 2,
+    title: 'Credits',
+  })
+  releaseMocks.createTrackPage.mockResolvedValue({
+    id: 'page-4',
+    parent: { type: 'track', id: 'track-1' },
+    position: 2,
+    title: 'Lyrics',
+  })
+  releaseMocks.deleteReleasePage.mockResolvedValue({ message: 'Deleted' })
   releaseMocks.updateRelease.mockResolvedValue(release)
+  releaseMocks.updateReleasePage.mockResolvedValue({
+    id: 'page-1',
+    parent: { type: 'release', id: 'release-1' },
+    position: 1,
+    title: 'Updated story',
+  })
   releaseMocks.updateReleaseTrack.mockResolvedValue({
     id: 'track-1',
     release_id: 'release-1',
@@ -293,7 +320,7 @@ describe('ReleaseDetailPage', () => {
 
     renderRelease()
 
-    await screen.findByText('Arrival')
+    await screen.findAllByText('Arrival')
     await browserUser.type(screen.getByLabelText('Nytt spor'), 'Return')
     await browserUser.click(
       screen.getByRole('button', { name: 'Legg til spor' }),
@@ -350,6 +377,65 @@ describe('ReleaseDetailPage', () => {
       'release-1',
       'track-1',
     )
+  })
+
+  it('creates, edits and removes release and track pages', async () => {
+    const browserUser = userEvent.setup()
+    releaseMocks.getRelease.mockResolvedValue({
+      ...release,
+      editor_user_ids: ['label-user-1'],
+      pages: [{ id: 'page-1', position: 1, title: 'Story' }],
+      tracks: [
+        {
+          id: 'track-1',
+          position: 1,
+          title: 'Arrival',
+          duration_ms: null,
+          isrc: null,
+          is_explicit: false,
+          pages: [{ id: 'page-2', position: 1, title: 'Lyrics' }],
+        },
+      ],
+    })
+
+    renderRelease()
+
+    await screen.findByText('Utgivelsessider')
+    await browserUser.type(
+      screen.getByLabelText('Ny utgivelsesside'),
+      'Credits',
+    )
+    await browserUser.click(
+      screen.getByRole('button', { name: 'Opprett side' }),
+    )
+    await browserUser.type(screen.getByLabelText('Ny sporside'), 'Notes')
+    await browserUser.click(
+      screen.getByRole('button', { name: 'Opprett sporside' }),
+    )
+
+    const pageTitles = screen.getAllByLabelText('Sidetittel')
+    await browserUser.clear(pageTitles[0])
+    await browserUser.type(pageTitles[0], 'Updated story')
+    await browserUser.click(
+      screen.getAllByRole('button', { name: 'Lagre side' })[0],
+    )
+    await browserUser.click(
+      screen.getAllByRole('button', { name: 'Fjern side' })[0],
+    )
+
+    expect(releaseMocks.createReleasePage).toHaveBeenCalledWith('release-1', {
+      position: 2,
+      title: 'Credits',
+    })
+    expect(releaseMocks.createTrackPage).toHaveBeenCalledWith('track-1', {
+      position: 2,
+      title: 'Notes',
+    })
+    expect(releaseMocks.updateReleasePage).toHaveBeenCalledWith('page-1', {
+      position: 1,
+      title: 'Updated story',
+    })
+    expect(releaseMocks.deleteReleasePage).toHaveBeenCalledWith('page-1')
   })
 
   it('keeps Artist User from editing unassigned artist releases', async () => {

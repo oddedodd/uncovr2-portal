@@ -9,16 +9,22 @@ import { artistKeys, getArtists } from '../lib/artists.ts'
 import type { PortalOutletContext } from '../lib/portal.ts'
 import {
   addReleaseArtist,
+  createReleasePage,
   createReleaseTrack,
+  createTrackPage,
+  deleteReleasePage,
   deleteReleaseTrack,
   getRelease,
   releaseKeys,
   removeReleaseArtist,
+  updateReleasePage,
   updateRelease,
   updateReleaseCover,
   updateReleaseTrack,
+  type ReleaseContentPage,
   type ReleaseArtistInput,
   type ReleaseMetadataInput,
+  type ReleasePageInput,
   type ReleaseTrack,
   type ReleaseTrackInput,
 } from '../lib/releases.ts'
@@ -47,6 +53,16 @@ function trackPayload(
     duration_ms: optionalDurationMs(data),
     isrc: optionalString(data, 'isrc')?.toUpperCase() ?? null,
     is_explicit: data.get('is_explicit') === 'on',
+  }
+}
+
+function pagePayload(
+  data: FormData,
+  fallbackPosition: number,
+): ReleasePageInput {
+  return {
+    position: Number(data.get('position') ?? fallbackPosition),
+    title: optionalString(data, 'title'),
   }
 }
 
@@ -166,6 +182,54 @@ export function ReleaseDetailPage() {
       ])
     },
   })
+  const createPage = useMutation({
+    mutationFn: ({
+      parent,
+      input,
+    }: {
+      parent: { type: 'release'; id: string } | { type: 'track'; id: string }
+      input: ReleasePageInput
+    }) =>
+      parent.type === 'release'
+        ? createReleasePage(parent.id, input)
+        : createTrackPage(parent.id, input),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: releaseKeys.detail(releaseId),
+        }),
+        queryClient.invalidateQueries({ queryKey: releaseKeys.all }),
+      ])
+    },
+  })
+  const updatePage = useMutation({
+    mutationFn: ({
+      pageId,
+      input,
+    }: {
+      pageId: string
+      input: Partial<ReleasePageInput>
+    }) => updateReleasePage(pageId, input),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: releaseKeys.detail(releaseId),
+        }),
+        queryClient.invalidateQueries({ queryKey: releaseKeys.all }),
+      ])
+    },
+  })
+  const deletePage = useMutation({
+    mutationFn: deleteReleasePage,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: releaseKeys.detail(releaseId),
+        }),
+        queryClient.invalidateQueries({ queryKey: releaseKeys.all }),
+      ])
+    },
+  })
 
   if (release.isPending) return <p aria-live="polite">Henter utgivelsen …</p>
   if (release.isError || !release.data || !workspace) {
@@ -248,6 +312,39 @@ export function ReleaseDetailPage() {
     })
   }
 
+  function handleReleasePageSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    createPage.mutate({
+      parent: { type: 'release', id: current.id },
+      input: pagePayload(data, sortedReleasePages.length + 1),
+    })
+  }
+
+  function handleTrackPageSubmit(
+    event: React.FormEvent<HTMLFormElement>,
+    track: ReleaseTrack,
+  ) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    createPage.mutate({
+      parent: { type: 'track', id: track.id },
+      input: pagePayload(data, (track.pages ?? []).length + 1),
+    })
+  }
+
+  function handlePageUpdate(
+    event: React.FormEvent<HTMLFormElement>,
+    page: ReleaseContentPage,
+  ) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    updatePage.mutate({
+      pageId: page.id,
+      input: pagePayload(data, page.position),
+    })
+  }
+
   const linkedArtistIds = new Set(
     current.artists.map((artist) => artist.artist_id),
   )
@@ -259,6 +356,9 @@ export function ReleaseDetailPage() {
     (first, second) => first.position - second.position,
   )
   const sortedTracks = [...(current.tracks ?? [])].sort(
+    (first, second) => first.position - second.position,
+  )
+  const sortedReleasePages = [...(current.pages ?? [])].sort(
     (first, second) => first.position - second.position,
   )
 
@@ -590,6 +690,220 @@ export function ReleaseDetailPage() {
             </div>
           </Form>
         ) : null}
+      </section>
+      <section
+        className="settings-card"
+        aria-labelledby="release-pages-heading"
+      >
+        <div className="settings-card__heading">
+          <h2 id="release-pages-heading">Sider</h2>
+          <p>
+            {canManage
+              ? 'Administrer sider på utgivelsen og på hvert spor.'
+              : 'Sider kan endres på redigerbare utgivelser du har tilgang til.'}
+          </p>
+        </div>
+        {createPage.isError ? (
+          <FeedbackBanner title="Kunne ikke opprette side" tone="error">
+            {formError(createPage.error)}
+          </FeedbackBanner>
+        ) : null}
+        {updatePage.isError ? (
+          <FeedbackBanner title="Kunne ikke lagre side" tone="error">
+            {formError(updatePage.error)}
+          </FeedbackBanner>
+        ) : null}
+        {deletePage.isError ? (
+          <FeedbackBanner title="Kunne ikke fjerne side" tone="error">
+            {formError(deletePage.error)}
+          </FeedbackBanner>
+        ) : null}
+        <div className="page-management-grid">
+          <div>
+            <h3>Utgivelsessider</h3>
+            {sortedReleasePages.length === 0 ? (
+              <div className="inline-empty">Ingen utgivelsessider ennå.</div>
+            ) : (
+              <ul className="page-list">
+                {sortedReleasePages.map((page) => (
+                  <li key={page.id}>
+                    {canManage ? (
+                      <Form
+                        className="page-row-form"
+                        method="post"
+                        onSubmit={(event) => handlePageUpdate(event, page)}
+                      >
+                        <FormField
+                          defaultValue={page.title ?? ''}
+                          label="Sidetittel"
+                          maxLength={200}
+                          name="title"
+                        />
+                        <FormField
+                          defaultValue={page.position}
+                          label="Posisjon"
+                          min={1}
+                          name="position"
+                          required
+                          type="number"
+                        />
+                        <div className="page-row-form__actions">
+                          <SubmitButton
+                            pending={updatePage.isPending}
+                            pendingLabel="Lagrer …"
+                          >
+                            Lagre side
+                          </SubmitButton>
+                          <button
+                            className="button button--secondary"
+                            disabled={deletePage.isPending}
+                            onClick={() => deletePage.mutate(page.id)}
+                            type="button"
+                          >
+                            Fjern side
+                          </button>
+                        </div>
+                      </Form>
+                    ) : (
+                      <span>
+                        {page.position}. {page.title ?? 'Uten tittel'}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {canManage ? (
+              <Form
+                className="page-create-form"
+                method="post"
+                onSubmit={handleReleasePageSubmit}
+              >
+                <FormField
+                  error={fieldError(createPage.error, 'title')}
+                  label="Ny utgivelsesside"
+                  maxLength={200}
+                  name="title"
+                />
+                <FormField
+                  defaultValue={sortedReleasePages.length + 1}
+                  error={fieldError(createPage.error, 'position')}
+                  label="Posisjon"
+                  min={1}
+                  name="position"
+                  required
+                  type="number"
+                />
+                <SubmitButton
+                  pending={createPage.isPending}
+                  pendingLabel="Oppretter …"
+                >
+                  Opprett side
+                </SubmitButton>
+              </Form>
+            ) : null}
+          </div>
+          <div>
+            <h3>Sporsider</h3>
+            {sortedTracks.length === 0 ? (
+              <div className="inline-empty">Legg til spor før sporsider.</div>
+            ) : (
+              sortedTracks.map((track) => {
+                const pages = [...(track.pages ?? [])].sort(
+                  (first, second) => first.position - second.position,
+                )
+                return (
+                  <div className="track-page-group" key={track.id}>
+                    <h4>{track.title}</h4>
+                    {pages.length === 0 ? (
+                      <p>Ingen sider på dette sporet.</p>
+                    ) : (
+                      <ul className="page-list">
+                        {pages.map((page) => (
+                          <li key={page.id}>
+                            {canManage ? (
+                              <Form
+                                className="page-row-form"
+                                method="post"
+                                onSubmit={(event) =>
+                                  handlePageUpdate(event, page)
+                                }
+                              >
+                                <FormField
+                                  defaultValue={page.title ?? ''}
+                                  label="Sidetittel"
+                                  maxLength={200}
+                                  name="title"
+                                />
+                                <FormField
+                                  defaultValue={page.position}
+                                  label="Posisjon"
+                                  min={1}
+                                  name="position"
+                                  required
+                                  type="number"
+                                />
+                                <div className="page-row-form__actions">
+                                  <SubmitButton
+                                    pending={updatePage.isPending}
+                                    pendingLabel="Lagrer …"
+                                  >
+                                    Lagre side
+                                  </SubmitButton>
+                                  <button
+                                    className="button button--secondary"
+                                    disabled={deletePage.isPending}
+                                    onClick={() => deletePage.mutate(page.id)}
+                                    type="button"
+                                  >
+                                    Fjern side
+                                  </button>
+                                </div>
+                              </Form>
+                            ) : (
+                              <span>
+                                {page.position}. {page.title ?? 'Uten tittel'}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {canManage ? (
+                      <Form
+                        className="page-create-form"
+                        method="post"
+                        onSubmit={(event) =>
+                          handleTrackPageSubmit(event, track)
+                        }
+                      >
+                        <FormField
+                          label="Ny sporside"
+                          maxLength={200}
+                          name="title"
+                        />
+                        <FormField
+                          defaultValue={pages.length + 1}
+                          label="Posisjon"
+                          min={1}
+                          name="position"
+                          required
+                          type="number"
+                        />
+                        <SubmitButton
+                          pending={createPage.isPending}
+                          pendingLabel="Oppretter …"
+                        >
+                          Opprett sporside
+                        </SubmitButton>
+                      </Form>
+                    ) : null}
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
       </section>
       <section
         className="settings-card"
