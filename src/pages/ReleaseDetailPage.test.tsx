@@ -1,0 +1,100 @@
+import { render, screen } from '@testing-library/react'
+import { Outlet, RouterProvider, createMemoryRouter } from 'react-router'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { AppProviders } from '../app/AppProviders.tsx'
+import type { CurrentUser, Workspace } from '../lib/auth.ts'
+import { ReleaseDetailPage } from './ReleaseDetailPage.tsx'
+
+const releaseMocks = vi.hoisted(() => ({
+  getRelease: vi.fn(),
+  updateReleaseCover: vi.fn(),
+}))
+
+vi.mock('../lib/releases.ts', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../lib/releases.ts')>()
+  return { ...original, ...releaseMocks }
+})
+
+const user: CurrentUser = {
+  id: 'label-user-1',
+  email: 'label-user@example.com',
+  email_verified_at: '2026-08-09T10:00:00.000Z',
+  is_superadmin: false,
+  profile: { display_name: 'Label User' },
+}
+
+const workspace: Workspace = {
+  id: 'label-1',
+  type: 'organization',
+  name: 'North Label',
+  role: 'label_user',
+  status: 'active',
+}
+
+const release = {
+  id: 'release-1',
+  owner: { type: 'organization' as const, id: 'label-1' },
+  type: 'single',
+  status: 'draft',
+  title: 'Signal',
+  subtitle: null,
+  description: null,
+  release_date: null,
+  upc: null,
+  cover_media_id: null,
+  cover_media: null,
+  artists: [
+    { artist_id: 'artist-1', name: 'Lumen', is_primary: true, position: 1 },
+  ],
+  editor_user_ids: [],
+  created_at: '2026-08-09T10:00:00.000Z',
+  updated_at: '2026-08-09T10:00:00.000Z',
+}
+
+function renderRelease() {
+  const router = createMemoryRouter(
+    [
+      {
+        element: <Outlet context={{ user, workspace }} />,
+        children: [
+          { path: '/releases/:releaseId', element: <ReleaseDetailPage /> },
+        ],
+      },
+    ],
+    { initialEntries: ['/releases/release-1'] },
+  )
+
+  render(
+    <AppProviders>
+      <RouterProvider router={router} />
+    </AppProviders>,
+  )
+}
+
+beforeEach(() => {
+  releaseMocks.getRelease.mockReset()
+  releaseMocks.updateReleaseCover.mockReset()
+  releaseMocks.getRelease.mockResolvedValue(release)
+})
+
+describe('ReleaseDetailPage', () => {
+  it('keeps Label User from editing unrestricted releases', async () => {
+    renderRelease()
+
+    expect(await screen.findByRole('heading', { name: 'Signal' })).toBeVisible()
+    expect(screen.queryByText('Last opp bilde')).not.toBeInTheDocument()
+    expect(releaseMocks.updateReleaseCover).not.toHaveBeenCalled()
+  })
+
+  it('lets Label User edit assigned draft releases', async () => {
+    releaseMocks.getRelease.mockResolvedValue({
+      ...release,
+      editor_user_ids: ['label-user-1'],
+    })
+
+    renderRelease()
+
+    expect(await screen.findByRole('heading', { name: 'Signal' })).toBeVisible()
+    expect(screen.getByText('Last opp bilde')).toBeVisible()
+  })
+})

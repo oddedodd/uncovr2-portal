@@ -13,18 +13,22 @@ import {
 } from '../lib/organizationTeam.ts'
 import type { PortalOutletContext } from '../lib/portal.ts'
 import { WorkspaceSectionPage } from './WorkspaceSectionPage.tsx'
+import { ForbiddenPage } from './states/ForbiddenPage.tsx'
 
-export function LabelTeamPage() {
-  const { workspace } = useOutletContext<PortalOutletContext>()
+function LabelTeamManager({
+  workspaceId,
+  workspaceName,
+}: {
+  workspaceId: string
+  workspaceName: string
+}) {
   const queryClient = useQueryClient()
   const [removing, setRemoving] = useState<OrganizationMember | null>(null)
   const [savedInvitation, setSavedInvitation] = useState<string | null>(null)
-  const workspaceId = workspace?.type === 'organization' ? workspace.id : ''
   const teamKey = organizationTeamKeys.all(workspaceId)
   const members = useQuery({
     queryKey: teamKey,
     queryFn: () => getOrganizationMembers(workspaceId),
-    enabled: Boolean(workspaceId),
     retry: false,
   })
   const refresh = () => queryClient.invalidateQueries({ queryKey: teamKey })
@@ -62,14 +66,10 @@ export function LabelTeamPage() {
     })
   }
 
-  if (!workspace || workspace.type !== 'organization') {
-    return <WorkspaceSectionPage />
-  }
-
   return (
     <div className="team-page">
       <div>
-        <p className="eyebrow">{workspace.name}</p>
+        <p className="eyebrow">{workspaceName}</p>
         <h1 className="page-title">Labelteam</h1>
         <p className="page-intro">
           Inviter medlemmer, korriger roller og stopp tilganger. Laravel
@@ -233,5 +233,24 @@ export function LabelTeamPage() {
         </section>
       ) : null}
     </div>
+  )
+}
+
+export function LabelTeamPage() {
+  const { workspace } = useOutletContext<PortalOutletContext>()
+
+  if (!workspace || workspace.type !== 'organization') {
+    return <WorkspaceSectionPage />
+  }
+
+  if (workspace.role !== 'label_admin') {
+    return <ForbiddenPage />
+  }
+
+  return (
+    <LabelTeamManager
+      workspaceId={workspace.id}
+      workspaceName={workspace.name}
+    />
   )
 }

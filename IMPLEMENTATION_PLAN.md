@@ -85,12 +85,12 @@ Portal feature work begins after the backend-to-portal gate for B0 through B6 pa
 - [x] `P3.4` Assign an Artist Admin during artist onboarding.
 - [x] `P3.4a` Add managed label logo, artist logo and artist image fields.
 - [x] `P3.5` Show all permitted releases across label artists.
-- [ ] `P3.6` Verify Label User restrictions for owned and assigned work.
+- [x] `P3.6` Verify Label User restrictions for owned and assigned work.
 
 ### P3 gate
 
 - [x] Label Admin can manage its label, team and artists without developer help.
-- [ ] Label User cannot administer team members or unrestricted content.
+- [x] Label User cannot administer team members or unrestricted content.
 
 ## P4 — Artist workflow
 

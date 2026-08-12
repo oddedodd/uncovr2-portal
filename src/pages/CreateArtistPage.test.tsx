@@ -29,6 +29,24 @@ const user: CurrentUser = {
   profile: { display_name: 'Label Admin' },
 }
 
+function renderCreateArtist(candidate: Workspace) {
+  const router = createMemoryRouter(
+    [
+      {
+        element: <Outlet context={{ user, workspace: candidate }} />,
+        children: [{ path: '/artists/new', element: <CreateArtistPage /> }],
+      },
+    ],
+    { initialEntries: ['/artists/new'] },
+  )
+
+  render(
+    <AppProviders>
+      <RouterProvider router={router} />
+    </AppProviders>,
+  )
+}
+
 beforeEach(() => {
   artistMocks.onboardArtist.mockReset()
   artistMocks.onboardArtist.mockResolvedValue({
@@ -39,22 +57,8 @@ beforeEach(() => {
 
 describe('CreateArtistPage', () => {
   it('onboards the artist and first Artist Admin in one action', async () => {
-    const router = createMemoryRouter(
-      [
-        {
-          element: <Outlet context={{ user, workspace }} />,
-          children: [{ path: '/artists/new', element: <CreateArtistPage /> }],
-        },
-      ],
-      { initialEntries: ['/artists/new'] },
-    )
     const browserUser = userEvent.setup()
-
-    render(
-      <AppProviders>
-        <RouterProvider router={router} />
-      </AppProviders>,
-    )
+    renderCreateArtist(workspace)
 
     await browserUser.type(
       screen.getByRole('textbox', { name: 'Artistnavn' }),
@@ -85,5 +89,16 @@ describe('CreateArtistPage', () => {
       confirmation: true,
     })
     expect(await screen.findByText('Artisten er opprettet')).toBeVisible()
+  })
+
+  it('blocks Label User from direct artist onboarding routes', () => {
+    renderCreateArtist({ ...workspace, role: 'label_user' })
+
+    expect(
+      screen.getByRole('heading', {
+        name: 'Dette arbeidsområdet er ikke tilgjengelig.',
+      }),
+    ).toBeVisible()
+    expect(artistMocks.onboardArtist).not.toHaveBeenCalled()
   })
 })

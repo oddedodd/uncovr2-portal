@@ -41,21 +41,22 @@ beforeEach(() => {
 })
 
 describe('LabelTeamPage', () => {
-  it('lists members and lets Label Admin change a role', async () => {
-    const workspace: Workspace = {
-      id: 'label-1',
-      type: 'organization',
-      name: 'North Label',
-      role: 'label_admin',
-      status: 'active',
-    }
-    const user: CurrentUser = {
-      id: 'admin-1',
-      email: 'admin@example.com',
-      email_verified_at: '2026-08-09T10:00:00.000Z',
-      is_superadmin: false,
-      profile: { display_name: 'Admin' },
-    }
+  const labelAdminWorkspace: Workspace = {
+    id: 'label-1',
+    type: 'organization',
+    name: 'North Label',
+    role: 'label_admin',
+    status: 'active',
+  }
+  const user: CurrentUser = {
+    id: 'admin-1',
+    email: 'admin@example.com',
+    email_verified_at: '2026-08-09T10:00:00.000Z',
+    is_superadmin: false,
+    profile: { display_name: 'Admin' },
+  }
+
+  function renderTeam(workspace: Workspace) {
     const router = createMemoryRouter(
       [
         {
@@ -65,13 +66,17 @@ describe('LabelTeamPage', () => {
       ],
       { initialEntries: ['/team'] },
     )
-    const browserUser = userEvent.setup()
 
     render(
       <AppProviders>
         <RouterProvider router={router} />
       </AppProviders>,
     )
+  }
+
+  it('lists members and lets Label Admin change a role', async () => {
+    const browserUser = userEvent.setup()
+    renderTeam(labelAdminWorkspace)
 
     expect(await screen.findByText('Label Member')).toBeVisible()
     await browserUser.selectOptions(
@@ -84,5 +89,19 @@ describe('LabelTeamPage', () => {
       'membership-1',
       { role: 'label_admin' },
     )
+  })
+
+  it('blocks Label User from direct team administration routes', () => {
+    renderTeam({ ...labelAdminWorkspace, role: 'label_user' })
+
+    expect(
+      screen.getByRole('heading', {
+        name: 'Dette arbeidsområdet er ikke tilgjengelig.',
+      }),
+    ).toBeVisible()
+    expect(teamMocks.getOrganizationMembers).not.toHaveBeenCalled()
+    expect(
+      screen.queryByRole('button', { name: 'Send invitasjon' }),
+    ).not.toBeInTheDocument()
   })
 })
