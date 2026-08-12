@@ -108,8 +108,8 @@ Portal feature work begins after the backend-to-portal gate for B0 through B6 pa
 ## P5 — Release builder
 
 - [x] `P5.1` Build release metadata, artist and date forms.
-- [x] `P5.2` Build sortable track management.
-- [x] `P5.3` Build page management for releases and tracks.
+- [x] `P5.2` Remove track-based release management from the portal.
+- [x] `P5.3` Build page management for releases.
 - [ ] `P5.4` Build the first accessible block-editor interface.
 - [ ] `P5.5` Build media upload, selection, replacement and removal.
   - [x] Reuse the secure media flow for release cover upload, replacement and removal.
@@ -132,7 +132,7 @@ Portal feature work begins after the backend-to-portal gate for B0 through B6 pa
 
 - [x] Superadmin creates or approves a label and its administrator.
 - [x] Label Admin invites team members and creates an artist with an Artist Admin.
-- [ ] Artist Admin creates a release with tracks, media, credits and rich content.
+- [ ] Artist Admin creates a release with pages, media, credits and rich content.
 - [ ] The release is previewed, approved and published entirely through the portal.
 - [ ] Lower-privileged users are blocked from forbidden actions in both UI and API.
 - [ ] The complete workflow passes automated end-to-end tests.

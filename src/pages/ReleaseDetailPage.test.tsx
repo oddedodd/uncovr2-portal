@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Outlet, RouterProvider, createMemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -9,16 +9,12 @@ import { ReleaseDetailPage } from './ReleaseDetailPage.tsx'
 const releaseMocks = vi.hoisted(() => ({
   addReleaseArtist: vi.fn(),
   createReleasePage: vi.fn(),
-  createReleaseTrack: vi.fn(),
-  createTrackPage: vi.fn(),
   deleteReleasePage: vi.fn(),
-  deleteReleaseTrack: vi.fn(),
   getRelease: vi.fn(),
   removeReleaseArtist: vi.fn(),
   updateReleasePage: vi.fn(),
   updateRelease: vi.fn(),
   updateReleaseCover: vi.fn(),
-  updateReleaseTrack: vi.fn(),
 }))
 
 const artistMocks = vi.hoisted(() => ({
@@ -124,15 +120,11 @@ beforeEach(() => {
   releaseMocks.getRelease.mockReset()
   releaseMocks.addReleaseArtist.mockReset()
   releaseMocks.createReleasePage.mockReset()
-  releaseMocks.createReleaseTrack.mockReset()
-  releaseMocks.createTrackPage.mockReset()
   releaseMocks.deleteReleasePage.mockReset()
-  releaseMocks.deleteReleaseTrack.mockReset()
   releaseMocks.removeReleaseArtist.mockReset()
   releaseMocks.updateReleasePage.mockReset()
   releaseMocks.updateRelease.mockReset()
   releaseMocks.updateReleaseCover.mockReset()
-  releaseMocks.updateReleaseTrack.mockReset()
   artistMocks.getArtists.mockResolvedValue({
     data: [
       {
@@ -165,27 +157,11 @@ beforeEach(() => {
     position: 2,
   })
   releaseMocks.removeReleaseArtist.mockResolvedValue({ message: 'Removed' })
-  releaseMocks.createReleaseTrack.mockResolvedValue({
-    id: 'track-3',
-    release_id: 'release-1',
-    position: 3,
-    title: 'New track',
-    duration_ms: null,
-    isrc: null,
-    is_explicit: false,
-  })
-  releaseMocks.deleteReleaseTrack.mockResolvedValue({ message: 'Deleted' })
   releaseMocks.createReleasePage.mockResolvedValue({
     id: 'page-3',
     parent: { type: 'release', id: 'release-1' },
     position: 2,
     title: 'Credits',
-  })
-  releaseMocks.createTrackPage.mockResolvedValue({
-    id: 'page-4',
-    parent: { type: 'track', id: 'track-1' },
-    position: 2,
-    title: 'Lyrics',
   })
   releaseMocks.deleteReleasePage.mockResolvedValue({ message: 'Deleted' })
   releaseMocks.updateRelease.mockResolvedValue(release)
@@ -194,15 +170,6 @@ beforeEach(() => {
     parent: { type: 'release', id: 'release-1' },
     position: 1,
     title: 'Updated story',
-  })
-  releaseMocks.updateReleaseTrack.mockResolvedValue({
-    id: 'track-1',
-    release_id: 'release-1',
-    position: 1,
-    title: 'Updated track',
-    duration_ms: null,
-    isrc: null,
-    is_explicit: false,
   })
 })
 
@@ -293,124 +260,20 @@ describe('ReleaseDetailPage', () => {
     )
   })
 
-  it('creates, edits, sorts and removes tracks for assigned draft releases', async () => {
-    const browserUser = userEvent.setup()
-    releaseMocks.getRelease.mockResolvedValue({
-      ...release,
-      editor_user_ids: ['label-user-1'],
-      tracks: [
-        {
-          id: 'track-1',
-          position: 1,
-          title: 'Arrival',
-          duration_ms: 183000,
-          isrc: 'NOABC2600001',
-          is_explicit: false,
-        },
-        {
-          id: 'track-2',
-          position: 2,
-          title: 'Departure',
-          duration_ms: null,
-          isrc: null,
-          is_explicit: true,
-        },
-      ],
-    })
-
-    renderRelease()
-
-    await screen.findAllByText('Arrival')
-    await browserUser.type(screen.getByLabelText('Nytt spor'), 'Return')
-    await browserUser.click(
-      screen.getByRole('button', { name: 'Legg til spor' }),
-    )
-
-    const trackTitles = screen.getAllByLabelText('Sportittel')
-    await browserUser.clear(trackTitles[0])
-    await browserUser.type(trackTitles[0], 'Arrival edit')
-    await browserUser.click(
-      screen.getAllByRole('button', { name: 'Lagre spor' })[0],
-    )
-    await browserUser.click(screen.getAllByRole('button', { name: 'Ned' })[0])
-    await browserUser.click(screen.getAllByRole('button', { name: 'Fjern' })[0])
-
-    await waitFor(() =>
-      expect(releaseMocks.createReleaseTrack).toHaveBeenCalledWith(
-        'release-1',
-        {
-          position: 3,
-          title: 'Return',
-          duration_ms: null,
-          isrc: null,
-          is_explicit: false,
-        },
-      ),
-    )
-    expect(releaseMocks.updateReleaseTrack).toHaveBeenCalledWith(
-      'release-1',
-      'track-1',
-      {
-        position: 1,
-        title: 'Arrival edit',
-        duration_ms: 183000,
-        isrc: 'NOABC2600001',
-        is_explicit: false,
-      },
-    )
-    expect(releaseMocks.updateReleaseTrack).toHaveBeenCalledWith(
-      'release-1',
-      'track-1',
-      { position: 3 },
-    )
-    expect(releaseMocks.updateReleaseTrack).toHaveBeenCalledWith(
-      'release-1',
-      'track-2',
-      { position: 1 },
-    )
-    expect(releaseMocks.updateReleaseTrack).toHaveBeenCalledWith(
-      'release-1',
-      'track-1',
-      { position: 2 },
-    )
-    expect(releaseMocks.deleteReleaseTrack).toHaveBeenCalledWith(
-      'release-1',
-      'track-1',
-    )
-  })
-
-  it('creates, edits and removes release and track pages', async () => {
+  it('creates, edits and removes release pages', async () => {
     const browserUser = userEvent.setup()
     releaseMocks.getRelease.mockResolvedValue({
       ...release,
       editor_user_ids: ['label-user-1'],
       pages: [{ id: 'page-1', position: 1, title: 'Story' }],
-      tracks: [
-        {
-          id: 'track-1',
-          position: 1,
-          title: 'Arrival',
-          duration_ms: null,
-          isrc: null,
-          is_explicit: false,
-          pages: [{ id: 'page-2', position: 1, title: 'Lyrics' }],
-        },
-      ],
     })
 
     renderRelease()
 
-    await screen.findByText('Utgivelsessider')
-    await browserUser.type(
-      screen.getByLabelText('Ny utgivelsesside'),
-      'Credits',
-    )
+    await screen.findByDisplayValue('Story')
+    await browserUser.type(screen.getByLabelText('Ny side'), 'Credits')
     await browserUser.click(
       screen.getByRole('button', { name: 'Opprett side' }),
-    )
-    await browserUser.type(screen.getByLabelText('Ny sporside'), 'Notes')
-    await browserUser.click(
-      screen.getByRole('button', { name: 'Opprett sporside' }),
     )
 
     const pageTitles = screen.getAllByLabelText('Sidetittel')
@@ -426,10 +289,6 @@ describe('ReleaseDetailPage', () => {
     expect(releaseMocks.createReleasePage).toHaveBeenCalledWith('release-1', {
       position: 2,
       title: 'Credits',
-    })
-    expect(releaseMocks.createTrackPage).toHaveBeenCalledWith('track-1', {
-      position: 2,
-      title: 'Notes',
     })
     expect(releaseMocks.updateReleasePage).toHaveBeenCalledWith('page-1', {
       position: 1,

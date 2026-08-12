@@ -21,26 +21,14 @@ export interface Release {
     position: number
   }>
   editor_user_ids: string[]
-  tracks?: ReleaseTrack[]
   pages?: ReleaseContentPage[]
   created_at: string
   updated_at: string
 }
 
-export interface ReleaseTrack {
-  id: string
-  release_id?: string
-  position: number
-  title: string
-  duration_ms: number | null
-  isrc: string | null
-  is_explicit: boolean
-  pages?: ReleaseContentPage[]
-}
-
 export interface ReleaseContentPage {
   id: string
-  parent?: { type: 'release' | 'track'; id: string }
+  parent?: { type: 'release'; id: string }
   position: number
   title: string | null
 }
@@ -76,14 +64,6 @@ export interface ReleaseArtistInput {
   artist_id: string
   is_primary: boolean
   position: number
-}
-
-export interface ReleaseTrackInput {
-  position: number
-  title: string
-  duration_ms: number | null
-  isrc: string | null
-  is_explicit: boolean
 }
 
 export interface ReleasePageInput {
@@ -179,46 +159,8 @@ export function removeReleaseArtist(releaseId: string, artistId: string) {
   ).then((response) => response.data)
 }
 
-export function createReleaseTrack(
-  releaseId: string,
-  input: ReleaseTrackInput,
-) {
-  return apiRequest<ReleaseTrack>(`/api/v1/releases/${releaseId}/tracks`, {
-    method: 'POST',
-    body: JSON.stringify(input),
-  }).then((response) => response.data)
-}
-
-export function updateReleaseTrack(
-  releaseId: string,
-  trackId: string,
-  input: Partial<ReleaseTrackInput>,
-) {
-  return apiRequest<ReleaseTrack>(
-    `/api/v1/releases/${releaseId}/tracks/${trackId}`,
-    {
-      method: 'PATCH',
-      body: JSON.stringify(input),
-    },
-  ).then((response) => response.data)
-}
-
-export function deleteReleaseTrack(releaseId: string, trackId: string) {
-  return apiRequest<{ message: string }>(
-    `/api/v1/releases/${releaseId}/tracks/${trackId}`,
-    { method: 'DELETE' },
-  ).then((response) => response.data)
-}
-
 export function createReleasePage(releaseId: string, input: ReleasePageInput) {
   return apiRequest<ReleaseContentPage>(`/api/v1/releases/${releaseId}/pages`, {
-    method: 'POST',
-    body: JSON.stringify(input),
-  }).then((response) => response.data)
-}
-
-export function createTrackPage(trackId: string, input: ReleasePageInput) {
-  return apiRequest<ReleaseContentPage>(`/api/v1/tracks/${trackId}/pages`, {
     method: 'POST',
     body: JSON.stringify(input),
   }).then((response) => response.data)
