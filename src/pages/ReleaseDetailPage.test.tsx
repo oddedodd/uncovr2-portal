@@ -8,10 +8,13 @@ import { ReleaseDetailPage } from './ReleaseDetailPage.tsx'
 
 const releaseMocks = vi.hoisted(() => ({
   addReleaseArtist: vi.fn(),
+  createContentBlock: vi.fn(),
   createReleasePage: vi.fn(),
+  deleteContentBlock: vi.fn(),
   deleteReleasePage: vi.fn(),
   getRelease: vi.fn(),
   removeReleaseArtist: vi.fn(),
+  updateContentBlock: vi.fn(),
   updateReleasePage: vi.fn(),
   updateRelease: vi.fn(),
   updateReleaseCover: vi.fn(),
@@ -119,9 +122,12 @@ beforeEach(() => {
   artistMocks.getArtists.mockReset()
   releaseMocks.getRelease.mockReset()
   releaseMocks.addReleaseArtist.mockReset()
+  releaseMocks.createContentBlock.mockReset()
   releaseMocks.createReleasePage.mockReset()
+  releaseMocks.deleteContentBlock.mockReset()
   releaseMocks.deleteReleasePage.mockReset()
   releaseMocks.removeReleaseArtist.mockReset()
+  releaseMocks.updateContentBlock.mockReset()
   releaseMocks.updateReleasePage.mockReset()
   releaseMocks.updateRelease.mockReset()
   releaseMocks.updateReleaseCover.mockReset()
@@ -157,13 +163,28 @@ beforeEach(() => {
     position: 2,
   })
   releaseMocks.removeReleaseArtist.mockResolvedValue({ message: 'Removed' })
+  releaseMocks.createContentBlock.mockResolvedValue({
+    id: 'block-2',
+    position: 2,
+    type: 'text',
+    version: 1,
+    payload: { body: 'New body' },
+  })
   releaseMocks.createReleasePage.mockResolvedValue({
     id: 'page-3',
     parent: { type: 'release', id: 'release-1' },
     position: 2,
     title: 'Credits',
   })
+  releaseMocks.deleteContentBlock.mockResolvedValue({ message: 'Deleted' })
   releaseMocks.deleteReleasePage.mockResolvedValue({ message: 'Deleted' })
+  releaseMocks.updateContentBlock.mockResolvedValue({
+    id: 'block-1',
+    position: 1,
+    type: 'text',
+    version: 2,
+    payload: { body: 'Updated body' },
+  })
   releaseMocks.updateRelease.mockResolvedValue(release)
   releaseMocks.updateReleasePage.mockResolvedValue({
     id: 'page-1',
@@ -295,6 +316,64 @@ describe('ReleaseDetailPage', () => {
       title: 'Updated story',
     })
     expect(releaseMocks.deleteReleasePage).toHaveBeenCalledWith('page-1')
+  })
+
+  it('creates, edits and removes page content blocks', async () => {
+    const browserUser = userEvent.setup()
+    releaseMocks.getRelease.mockResolvedValue({
+      ...release,
+      editor_user_ids: ['label-user-1'],
+      pages: [
+        {
+          id: 'page-1',
+          position: 1,
+          title: 'Story',
+          blocks: [
+            {
+              id: 'block-1',
+              position: 1,
+              type: 'text',
+              version: 1,
+              payload: { body: 'Original body' },
+            },
+          ],
+        },
+      ],
+    })
+
+    renderRelease()
+
+    await screen.findByDisplayValue('Original body')
+    const initialTextAreas = screen.getAllByLabelText('Tekst')
+    await browserUser.type(initialTextAreas[1], 'New body')
+    await browserUser.click(
+      screen.getByRole('button', { name: 'Legg til blokk' }),
+    )
+
+    const textAreas = screen.getAllByLabelText('Tekst')
+    await browserUser.clear(textAreas[0])
+    await browserUser.type(textAreas[0], 'Updated body')
+    await browserUser.click(screen.getByRole('button', { name: 'Lagre blokk' }))
+    await browserUser.click(screen.getByRole('button', { name: 'Fjern blokk' }))
+
+    expect(releaseMocks.createContentBlock).toHaveBeenCalledWith('page-1', {
+      position: 2,
+      type: 'text',
+      payload: { body: 'New body' },
+    })
+    expect(releaseMocks.updateContentBlock).toHaveBeenCalledWith(
+      'page-1',
+      'block-1',
+      {
+        position: 1,
+        type: 'text',
+        payload: { body: 'Updated body' },
+      },
+    )
+    expect(releaseMocks.deleteContentBlock).toHaveBeenCalledWith(
+      'page-1',
+      'block-1',
+    )
   })
 
   it('keeps Artist User from editing unassigned artist releases', async () => {

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { Form, Link, useOutletContext, useParams } from 'react-router'
 import { FeedbackBanner } from '../components/FeedbackBanner.tsx'
 import { FormField } from '../components/FormField.tsx'
@@ -9,15 +10,22 @@ import { artistKeys, getArtists } from '../lib/artists.ts'
 import type { PortalOutletContext } from '../lib/portal.ts'
 import {
   addReleaseArtist,
+  createContentBlock,
   createReleasePage,
+  deleteContentBlock,
   deleteReleasePage,
   getRelease,
   releaseKeys,
   removeReleaseArtist,
+  updateContentBlock,
   updateReleasePage,
   updateRelease,
   updateReleaseCover,
   type ReleaseContentPage,
+  type ReleaseContentBlock,
+  type ReleaseContentBlockInput,
+  type ReleaseContentBlockPayload,
+  type ReleaseContentBlockType,
   type ReleaseArtistInput,
   type ReleaseMetadataInput,
   type ReleasePageInput,
@@ -36,6 +44,196 @@ function pagePayload(
     position: Number(data.get('position') ?? fallbackPosition),
     title: optionalString(data, 'title'),
   }
+}
+
+function blockPayload(type: ReleaseContentBlockType, data: FormData) {
+  if (type === 'heading') {
+    return {
+      text: String(data.get('text') ?? '').trim(),
+      level: Number(data.get('level') ?? 2),
+    }
+  }
+  if (type === 'text') {
+    return { body: String(data.get('body') ?? '').trim() }
+  }
+  if (type === 'quote') {
+    return {
+      text: String(data.get('text') ?? '').trim(),
+      attribution: optionalString(data, 'attribution'),
+    }
+  }
+  return {
+    text: String(data.get('text') ?? '').trim(),
+    language: optionalString(data, 'language'),
+  }
+}
+
+function blockTextValue(block: ReleaseContentBlock) {
+  const payload = block.payload
+  if ('body' in payload && typeof payload.body === 'string') return payload.body
+  if ('text' in payload && typeof payload.text === 'string') return payload.text
+  return ''
+}
+
+function blockSecondaryValue(block: ReleaseContentBlock, key: string) {
+  const value = (block.payload as Record<string, unknown>)[key]
+  return typeof value === 'string' ? value : ''
+}
+
+function blockLevelValue(payload: ReleaseContentBlockPayload) {
+  return 'level' in payload && typeof payload.level === 'number'
+    ? payload.level
+    : 2
+}
+
+function ContentBlockForm({
+  block,
+  defaultPosition = 1,
+  disabled,
+  onDelete,
+  onSubmit,
+  pending,
+}: {
+  block?: ReleaseContentBlock
+  defaultPosition?: number
+  disabled?: boolean
+  onDelete?: () => void
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
+  pending: boolean
+}) {
+  const [type, setType] = useState<ReleaseContentBlockType>(
+    block?.type ?? 'text',
+  )
+  const text = block ? blockTextValue(block) : ''
+
+  return (
+    <Form className="content-block-form" method="post" onSubmit={onSubmit}>
+      <div className="form-field">
+        <label htmlFor={`${block?.id ?? 'new'}-block-type`}>Blokktype</label>
+        <select
+          id={`${block?.id ?? 'new'}-block-type`}
+          name="type"
+          onChange={(event) =>
+            setType(event.target.value as ReleaseContentBlockType)
+          }
+          value={type}
+        >
+          <option value="text">Tekst</option>
+          <option value="heading">Overskrift</option>
+          <option value="quote">Sitat</option>
+          <option value="lyrics">Lyrikk</option>
+        </select>
+      </div>
+      <FormField
+        defaultValue={block?.position ?? defaultPosition}
+        label="Posisjon"
+        min={1}
+        name="position"
+        required
+        type="number"
+      />
+      {type === 'heading' ? (
+        <>
+          <FormField
+            defaultValue={text}
+            label="Overskrift"
+            maxLength={500}
+            name="text"
+            required
+          />
+          <FormField
+            defaultValue={block ? blockLevelValue(block.payload) : 2}
+            label="Nivå"
+            max={6}
+            min={1}
+            name="level"
+            required
+            type="number"
+          />
+        </>
+      ) : null}
+      {type === 'text' ? (
+        <div className="form-field content-block-form__wide">
+          <label htmlFor={`${block?.id ?? 'new'}-body`}>Tekst</label>
+          <textarea
+            defaultValue={block?.type === 'text' ? text : ''}
+            id={`${block?.id ?? 'new'}-body`}
+            name="body"
+            required
+            rows={5}
+          />
+        </div>
+      ) : null}
+      {type === 'quote' ? (
+        <>
+          <div className="form-field content-block-form__wide">
+            <label htmlFor={`${block?.id ?? 'new'}-quote`}>Sitat</label>
+            <textarea
+              defaultValue={block?.type === 'quote' ? text : ''}
+              id={`${block?.id ?? 'new'}-quote`}
+              name="text"
+              required
+              rows={4}
+            />
+          </div>
+          <FormField
+            defaultValue={
+              block?.type === 'quote'
+                ? blockSecondaryValue(block, 'attribution')
+                : ''
+            }
+            label="Kilde"
+            maxLength={500}
+            name="attribution"
+          />
+        </>
+      ) : null}
+      {type === 'lyrics' ? (
+        <>
+          <div className="form-field content-block-form__wide">
+            <label htmlFor={`${block?.id ?? 'new'}-lyrics`}>Lyrikk</label>
+            <textarea
+              defaultValue={block?.type === 'lyrics' ? text : ''}
+              id={`${block?.id ?? 'new'}-lyrics`}
+              name="text"
+              required
+              rows={6}
+            />
+          </div>
+          <FormField
+            defaultValue={
+              block?.type === 'lyrics'
+                ? blockSecondaryValue(block, 'language')
+                : ''
+            }
+            label="Språk"
+            name="language"
+            pattern="[a-z]{2,3}(-[A-Z]{2})?"
+            placeholder="no"
+          />
+        </>
+      ) : null}
+      <div className="content-block-form__actions">
+        <SubmitButton
+          disabled={disabled}
+          pending={pending}
+          pendingLabel="Lagrer …"
+        >
+          {block ? 'Lagre blokk' : 'Legg til blokk'}
+        </SubmitButton>
+        {block && onDelete ? (
+          <button
+            className="button button--secondary"
+            disabled={disabled}
+            onClick={onDelete}
+            type="button"
+          >
+            Fjern blokk
+          </button>
+        ) : null}
+      </div>
+    </Form>
+  )
 }
 
 export function ReleaseDetailPage() {
@@ -125,6 +323,45 @@ export function ReleaseDetailPage() {
       ])
     },
   })
+  const createBlock = useMutation({
+    mutationFn: ({
+      pageId,
+      input,
+    }: {
+      pageId: string
+      input: ReleaseContentBlockInput
+    }) => createContentBlock(pageId, input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: releaseKeys.detail(releaseId),
+      })
+    },
+  })
+  const updateBlock = useMutation({
+    mutationFn: ({
+      pageId,
+      blockId,
+      input,
+    }: {
+      pageId: string
+      blockId: string
+      input: Partial<ReleaseContentBlockInput>
+    }) => updateContentBlock(pageId, blockId, input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: releaseKeys.detail(releaseId),
+      })
+    },
+  })
+  const deleteBlock = useMutation({
+    mutationFn: ({ pageId, blockId }: { pageId: string; blockId: string }) =>
+      deleteContentBlock(pageId, blockId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: releaseKeys.detail(releaseId),
+      })
+    },
+  })
 
   if (release.isPending) return <p aria-live="polite">Henter utgivelsen …</p>
   if (release.isError || !release.data || !workspace) {
@@ -190,6 +427,46 @@ export function ReleaseDetailPage() {
     updatePage.mutate({
       pageId: page.id,
       input: pagePayload(data, page.position),
+    })
+  }
+
+  function handleBlockSubmit(
+    event: React.FormEvent<HTMLFormElement>,
+    page: ReleaseContentPage,
+  ) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    const type = String(data.get('type') ?? 'text') as ReleaseContentBlockType
+    createBlock.mutate({
+      pageId: page.id,
+      input: {
+        position: Number(
+          data.get('position') ?? (page.blocks ?? []).length + 1,
+        ),
+        type,
+        payload: blockPayload(type, data),
+      },
+    })
+  }
+
+  function handleBlockUpdate(
+    event: React.FormEvent<HTMLFormElement>,
+    page: ReleaseContentPage,
+    block: ReleaseContentBlock,
+  ) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    const type = String(
+      data.get('type') ?? block.type,
+    ) as ReleaseContentBlockType
+    updateBlock.mutate({
+      pageId: page.id,
+      blockId: block.id,
+      input: {
+        position: Number(data.get('position') ?? block.position),
+        type,
+        payload: blockPayload(type, data),
+      },
     })
   }
 
@@ -377,6 +654,21 @@ export function ReleaseDetailPage() {
             {formError(deletePage.error)}
           </FeedbackBanner>
         ) : null}
+        {createBlock.isError ? (
+          <FeedbackBanner title="Kunne ikke legge til blokk" tone="error">
+            {formError(createBlock.error)}
+          </FeedbackBanner>
+        ) : null}
+        {updateBlock.isError ? (
+          <FeedbackBanner title="Kunne ikke lagre blokk" tone="error">
+            {formError(updateBlock.error)}
+          </FeedbackBanner>
+        ) : null}
+        {deleteBlock.isError ? (
+          <FeedbackBanner title="Kunne ikke fjerne blokk" tone="error">
+            {formError(deleteBlock.error)}
+          </FeedbackBanner>
+        ) : null}
         {sortedReleasePages.length === 0 ? (
           <div className="inline-empty">Ingen sider ennå.</div>
         ) : (
@@ -425,6 +717,56 @@ export function ReleaseDetailPage() {
                     {page.position}. {page.title ?? 'Uten tittel'}
                   </span>
                 )}
+                <div className="content-block-editor">
+                  <h3>Blokker</h3>
+                  {(page.blocks ?? []).length === 0 ? (
+                    <div className="inline-empty">Ingen blokker ennå.</div>
+                  ) : (
+                    <ul className="content-block-list">
+                      {[...(page.blocks ?? [])]
+                        .sort(
+                          (first, second) => first.position - second.position,
+                        )
+                        .map((block) => (
+                          <li key={block.id}>
+                            {canManage ? (
+                              <ContentBlockForm
+                                block={block}
+                                disabled={
+                                  updateBlock.isPending || deleteBlock.isPending
+                                }
+                                pending={updateBlock.isPending}
+                                onDelete={() =>
+                                  deleteBlock.mutate({
+                                    pageId: page.id,
+                                    blockId: block.id,
+                                  })
+                                }
+                                onSubmit={(event) =>
+                                  handleBlockUpdate(event, page, block)
+                                }
+                              />
+                            ) : (
+                              <div className="content-block-preview">
+                                <strong>
+                                  {block.position}. {block.type}
+                                </strong>
+                                <span>{blockTextValue(block)}</span>
+                              </div>
+                            )}
+                          </li>
+                        ))}
+                    </ul>
+                  )}
+                  {canManage ? (
+                    <ContentBlockForm
+                      defaultPosition={(page.blocks ?? []).length + 1}
+                      disabled={createBlock.isPending}
+                      pending={createBlock.isPending}
+                      onSubmit={(event) => handleBlockSubmit(event, page)}
+                    />
+                  ) : null}
+                </div>
               </li>
             ))}
           </ul>

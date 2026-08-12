@@ -31,6 +31,31 @@ export interface ReleaseContentPage {
   parent?: { type: 'release'; id: string }
   position: number
   title: string | null
+  blocks?: ReleaseContentBlock[]
+}
+
+export type ReleaseContentBlockType =
+  | 'heading'
+  | 'text'
+  | 'image'
+  | 'gallery'
+  | 'video'
+  | 'quote'
+  | 'lyrics'
+
+export type ReleaseContentBlockPayload =
+  | { text: string; level: number }
+  | { body: string }
+  | { text: string; attribution: string | null }
+  | { text: string; language: string | null }
+  | Record<string, unknown>
+
+export interface ReleaseContentBlock {
+  id: string
+  position: number
+  type: ReleaseContentBlockType
+  version: number
+  payload: ReleaseContentBlockPayload
 }
 
 export interface ReleasePage {
@@ -69,6 +94,12 @@ export interface ReleaseArtistInput {
 export interface ReleasePageInput {
   position: number
   title: string | null
+}
+
+export interface ReleaseContentBlockInput {
+  position: number
+  type: ReleaseContentBlockType
+  payload: ReleaseContentBlockPayload
 }
 
 interface ReleasePaginationMeta {
@@ -180,4 +211,35 @@ export function deleteReleasePage(pageId: string) {
   return apiRequest<{ message: string }>(`/api/v1/pages/${pageId}`, {
     method: 'DELETE',
   }).then((response) => response.data)
+}
+
+export function createContentBlock(
+  pageId: string,
+  input: ReleaseContentBlockInput,
+) {
+  return apiRequest<ReleaseContentBlock>(`/api/v1/pages/${pageId}/blocks`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  }).then((response) => response.data)
+}
+
+export function updateContentBlock(
+  pageId: string,
+  blockId: string,
+  input: Partial<ReleaseContentBlockInput>,
+) {
+  return apiRequest<ReleaseContentBlock>(
+    `/api/v1/pages/${pageId}/blocks/${blockId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    },
+  ).then((response) => response.data)
+}
+
+export function deleteContentBlock(pageId: string, blockId: string) {
+  return apiRequest<{ message: string }>(
+    `/api/v1/pages/${pageId}/blocks/${blockId}`,
+    { method: 'DELETE' },
+  ).then((response) => response.data)
 }

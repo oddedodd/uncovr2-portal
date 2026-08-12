@@ -1,13 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   addReleaseArtist,
+  createContentBlock,
   createRelease,
   createReleasePage,
+  deleteContentBlock,
   deleteReleasePage,
   getReleases,
   removeReleaseArtist,
   updateRelease,
   updateReleaseCover,
+  updateContentBlock,
   updateReleasePage,
 } from './releases.ts'
 
@@ -208,6 +211,59 @@ describe('release API', () => {
     )
     expect(fetchMock).toHaveBeenCalledWith(
       new URL('http://localhost:8000/api/v1/pages/page-1'),
+      expect.objectContaining({ method: 'DELETE' }),
+    )
+  })
+
+  it('creates content blocks through Laravel', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ data: {} }))
+
+    await createContentBlock('page-1', {
+      position: 1,
+      type: 'text',
+      payload: { body: 'The story' },
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL('http://localhost:8000/api/v1/pages/page-1/blocks'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          position: 1,
+          type: 'text',
+          payload: { body: 'The story' },
+        }),
+      }),
+    )
+  })
+
+  it('updates and deletes content blocks through Laravel', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(() => Promise.resolve(jsonResponse({ data: {} })))
+
+    await updateContentBlock('page-1', 'block-1', {
+      position: 2,
+      type: 'heading',
+      payload: { text: 'Title', level: 2 },
+    })
+    await deleteContentBlock('page-1', 'block-1')
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL('http://localhost:8000/api/v1/pages/page-1/blocks/block-1'),
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({
+          position: 2,
+          type: 'heading',
+          payload: { text: 'Title', level: 2 },
+        }),
+      }),
+    )
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL('http://localhost:8000/api/v1/pages/page-1/blocks/block-1'),
       expect.objectContaining({ method: 'DELETE' }),
     )
   })
