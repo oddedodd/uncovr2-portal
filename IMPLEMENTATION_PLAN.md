@@ -97,7 +97,7 @@ Portal feature work begins after the backend-to-portal gate for B0 through B6 pa
 - [x] `P4.1` Build artist dashboard and profile editor.
 - [x] `P4.2` Build artist team invitations, roles and removal.
 - [x] `P4.3` Build release listing with status, ownership and assignment filters.
-- [ ] `P4.4` Build release creation and basic metadata editing.
+- [x] `P4.4` Build release creation and basic metadata editing.
 - [ ] `P4.5` Verify Artist User restrictions for owned and assigned work.
 
 ### P4 gate

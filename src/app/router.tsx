@@ -10,6 +10,7 @@ import { ArtistsPage } from '../pages/ArtistsPage.tsx'
 import { ArtistDetailPage } from '../pages/ArtistDetailPage.tsx'
 import { CreateArtistPage } from '../pages/CreateArtistPage.tsx'
 import { CreateOrganizationPage } from '../pages/CreateOrganizationPage.tsx'
+import { CreateReleasePage } from '../pages/CreateReleasePage.tsx'
 import { DashboardPage } from '../pages/DashboardPage.tsx'
 import { NotFoundPage } from '../pages/NotFoundPage.tsx'
 import { OrganizationDetailPage } from '../pages/OrganizationDetailPage.tsx'
@@ -112,6 +113,7 @@ export const router = createBrowserRouter([
           { path: 'artists/:artistId', element: <ArtistDetailPage /> },
           { path: 'artists/new', element: <CreateArtistPage /> },
           { path: 'releases', element: <ReleasesPage /> },
+          { path: 'releases/new', element: <CreateReleasePage /> },
           { path: 'releases/:releaseId', element: <ReleaseDetailPage /> },
           { path: 'team', element: <LabelTeamPage /> },
           { path: 'forbidden', element: <ForbiddenPage /> },

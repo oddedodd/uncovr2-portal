@@ -1,10 +1,23 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useOutletContext, useParams } from 'react-router'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Form, Link, useOutletContext, useParams } from 'react-router'
 import { FeedbackBanner } from '../components/FeedbackBanner.tsx'
+import { FormField } from '../components/FormField.tsx'
 import { ImageUploadField } from '../components/ImageUploadField.tsx'
-import { formError } from '../features/auth/validation.ts'
+import { SubmitButton } from '../components/SubmitButton.tsx'
+import { fieldError, formError } from '../features/auth/validation.ts'
 import type { PortalOutletContext } from '../lib/portal.ts'
-import { getRelease, releaseKeys, updateReleaseCover } from '../lib/releases.ts'
+import {
+  getRelease,
+  releaseKeys,
+  updateRelease,
+  updateReleaseCover,
+  type ReleaseMetadataInput,
+} from '../lib/releases.ts'
+
+function optionalString(data: FormData, key: string): string | null {
+  const value = String(data.get(key) ?? '').trim()
+  return value || null
+}
 
 export function ReleaseDetailPage() {
   const { releaseId = '' } = useParams()
@@ -15,6 +28,14 @@ export function ReleaseDetailPage() {
     queryFn: () => getRelease(releaseId),
     enabled: Boolean(releaseId),
     retry: false,
+  })
+  const metadata = useMutation({
+    mutationFn: (input: ReleaseMetadataInput) =>
+      updateRelease(releaseId, input),
+    onSuccess: async (updated) => {
+      queryClient.setQueryData(releaseKeys.detail(updated.id), updated)
+      await queryClient.invalidateQueries({ queryKey: releaseKeys.all })
+    },
   })
 
   if (release.isPending) return <p aria-live="polite">Henter utgivelsen …</p>
@@ -38,6 +59,22 @@ export function ReleaseDetailPage() {
     const updated = await updateReleaseCover(current.id, coverMediaId)
     queryClient.setQueryData(releaseKeys.detail(current.id), updated)
     await queryClient.invalidateQueries({ queryKey: releaseKeys.all })
+  }
+
+  function handleMetadataSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    metadata.mutate({
+      type: String(data.get('type') ?? current.type) as
+        | 'album'
+        | 'ep'
+        | 'single',
+      title: String(data.get('title') ?? '').trim(),
+      subtitle: optionalString(data, 'subtitle'),
+      description: optionalString(data, 'description'),
+      release_date: optionalString(data, 'release_date'),
+      upc: optionalString(data, 'upc'),
+    })
   }
 
   return (
@@ -86,25 +123,123 @@ export function ReleaseDetailPage() {
       >
         <div className="settings-card__heading">
           <h2 id="release-details-heading">Utgivelsesinformasjon</h2>
+          <p>
+            {canManage
+              ? 'Oppdater grunnleggende metadata mens utgivelsen er redigerbar.'
+              : 'Grunnleggende metadata kan bare endres for redigerbare utgivelser du har tilgang til.'}
+          </p>
         </div>
-        <dl className="profile-details">
-          <div>
-            <dt>Type</dt>
-            <dd>{current.type}</dd>
-          </div>
-          <div>
-            <dt>Utgivelsesdato</dt>
-            <dd>{current.release_date ?? 'Ikke satt'}</dd>
-          </div>
-          <div>
-            <dt>UPC</dt>
-            <dd>{current.upc ?? 'Ikke satt'}</dd>
-          </div>
-          <div>
-            <dt>Offentlig ID</dt>
-            <dd>{current.id}</dd>
-          </div>
-        </dl>
+        {metadata.isError ? (
+          <FeedbackBanner title="Kunne ikke lagre utgivelsen" tone="error">
+            {formError(metadata.error)}
+          </FeedbackBanner>
+        ) : null}
+        {metadata.isSuccess ? (
+          <FeedbackBanner title="Utgivelsen er lagret" tone="success">
+            Metadata ble oppdatert.
+          </FeedbackBanner>
+        ) : null}
+        {canManage ? (
+          <Form
+            className="form-stack"
+            method="post"
+            onSubmit={handleMetadataSubmit}
+          >
+            <div className="form-field">
+              <label htmlFor="release-type">Type</label>
+              <select defaultValue={current.type} id="release-type" name="type">
+                <option value="single">Single</option>
+                <option value="ep">EP</option>
+                <option value="album">Album</option>
+              </select>
+            </div>
+            <FormField
+              defaultValue={current.title}
+              error={fieldError(metadata.error, 'title')}
+              label="Tittel"
+              maxLength={200}
+              name="title"
+              required
+            />
+            <FormField
+              defaultValue={current.subtitle ?? ''}
+              error={fieldError(metadata.error, 'subtitle')}
+              label="Undertittel"
+              maxLength={200}
+              name="subtitle"
+            />
+            <div className="form-field">
+              <label htmlFor="release-description">Beskrivelse</label>
+              <textarea
+                aria-describedby={
+                  fieldError(metadata.error, 'description')
+                    ? 'release-description-error'
+                    : undefined
+                }
+                aria-invalid={
+                  fieldError(metadata.error, 'description') ? true : undefined
+                }
+                defaultValue={current.description ?? ''}
+                id="release-description"
+                maxLength={10000}
+                name="description"
+                rows={6}
+              />
+              {fieldError(metadata.error, 'description') ? (
+                <span
+                  className="field-error"
+                  id="release-description-error"
+                  role="alert"
+                >
+                  {fieldError(metadata.error, 'description')}
+                </span>
+              ) : null}
+            </div>
+            <FormField
+              defaultValue={current.release_date ?? ''}
+              error={fieldError(metadata.error, 'release_date')}
+              label="Utgivelsesdato"
+              name="release_date"
+              type="date"
+            />
+            <FormField
+              defaultValue={current.upc ?? ''}
+              error={fieldError(metadata.error, 'upc')}
+              inputMode="numeric"
+              label="UPC"
+              maxLength={14}
+              name="upc"
+              pattern="[0-9]{12,14}"
+            />
+            <div className="resource-form-actions">
+              <SubmitButton
+                pending={metadata.isPending}
+                pendingLabel="Lagrer …"
+              >
+                Lagre metadata
+              </SubmitButton>
+            </div>
+          </Form>
+        ) : (
+          <dl className="profile-details">
+            <div>
+              <dt>Type</dt>
+              <dd>{current.type}</dd>
+            </div>
+            <div>
+              <dt>Utgivelsesdato</dt>
+              <dd>{current.release_date ?? 'Ikke satt'}</dd>
+            </div>
+            <div>
+              <dt>UPC</dt>
+              <dd>{current.upc ?? 'Ikke satt'}</dd>
+            </div>
+            <div>
+              <dt>Offentlig ID</dt>
+              <dd>{current.id}</dd>
+            </div>
+          </dl>
+        )}
       </section>
       <Link className="resource-back-link" to="/releases">
         Tilbake til alle utgivelser

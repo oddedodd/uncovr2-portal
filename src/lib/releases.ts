@@ -36,6 +36,22 @@ export interface ReleaseListFilters {
   type?: string
 }
 
+export interface ReleaseMetadataInput {
+  type: 'album' | 'ep' | 'single'
+  title: string
+  subtitle: string | null
+  description: string | null
+  release_date: string | null
+  upc: string | null
+}
+
+export interface CreateReleaseInput extends ReleaseMetadataInput {
+  owner_type: 'organization' | 'artist'
+  owner_id: string
+  primary_artist_id: string
+  cover_media_id: string | null
+}
+
 interface ReleasePaginationMeta {
   pagination?: CursorPagination
 }
@@ -82,12 +98,26 @@ export function getRelease(releaseId: string) {
   )
 }
 
+export function createRelease(input: CreateReleaseInput) {
+  return apiRequest<Release>('/api/v1/releases', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  }).then((response) => response.data)
+}
+
+export function updateRelease(
+  releaseId: string,
+  input: Partial<ReleaseMetadataInput & { cover_media_id: string | null }>,
+) {
+  return apiRequest<Release>(`/api/v1/releases/${releaseId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  }).then((response) => response.data)
+}
+
 export function updateReleaseCover(
   releaseId: string,
   coverMediaId: string | null,
 ) {
-  return apiRequest<Release>(`/api/v1/releases/${releaseId}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ cover_media_id: coverMediaId }),
-  }).then((response) => response.data)
+  return updateRelease(releaseId, { cover_media_id: coverMediaId })
 }

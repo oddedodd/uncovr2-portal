@@ -117,14 +117,27 @@ export function ReleasesPage() {
     setAssignment(event.target.value as AssignmentFilter)
   }
 
+  const canCreateRelease =
+    (workspace.type === 'organization' && workspace.role === 'label_admin') ||
+    (workspace.type === 'artist' && workspace.role === 'artist_admin')
+
   return (
     <>
       <p className="eyebrow">{workspace.name}</p>
-      <h1 className="page-title">Utgivelser</h1>
-      <p className="page-intro">
-        Alle utgivelser Laravel gir rollen din tilgang til, også på tvers av
-        labelens artister.
-      </p>
+      <div className="page-heading-row">
+        <div>
+          <h1 className="page-title">Utgivelser</h1>
+          <p className="page-intro">
+            Alle utgivelser Laravel gir rollen din tilgang til, også på tvers av
+            labelens artister.
+          </p>
+        </div>
+        {canCreateRelease ? (
+          <Link className="button button--primary" to="/releases/new">
+            Opprett utgivelse
+          </Link>
+        ) : null}
+      </div>
       {releases.isError ? (
         <FeedbackBanner title="Kunne ikke hente utgivelser" tone="error">
           {formError(releases.error)}

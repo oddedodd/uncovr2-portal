@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { Outlet, RouterProvider, createMemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppProviders } from '../app/AppProviders.tsx'
@@ -7,6 +8,7 @@ import { ReleaseDetailPage } from './ReleaseDetailPage.tsx'
 
 const releaseMocks = vi.hoisted(() => ({
   getRelease: vi.fn(),
+  updateRelease: vi.fn(),
   updateReleaseCover: vi.fn(),
 }))
 
@@ -73,8 +75,10 @@ function renderRelease() {
 
 beforeEach(() => {
   releaseMocks.getRelease.mockReset()
+  releaseMocks.updateRelease.mockReset()
   releaseMocks.updateReleaseCover.mockReset()
   releaseMocks.getRelease.mockResolvedValue(release)
+  releaseMocks.updateRelease.mockResolvedValue(release)
 })
 
 describe('ReleaseDetailPage', () => {
@@ -96,5 +100,31 @@ describe('ReleaseDetailPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Signal' })).toBeVisible()
     expect(screen.getByText('Last opp bilde')).toBeVisible()
+  })
+
+  it('saves metadata for assigned draft releases', async () => {
+    const browserUser = userEvent.setup()
+    releaseMocks.getRelease.mockResolvedValue({
+      ...release,
+      editor_user_ids: ['label-user-1'],
+    })
+
+    renderRelease()
+
+    const title = await screen.findByLabelText('Tittel')
+    await browserUser.clear(title)
+    await browserUser.type(title, 'New Signal')
+    await browserUser.click(
+      screen.getByRole('button', { name: 'Lagre metadata' }),
+    )
+
+    expect(releaseMocks.updateRelease).toHaveBeenCalledWith('release-1', {
+      type: 'single',
+      title: 'New Signal',
+      subtitle: null,
+      description: null,
+      release_date: null,
+      upc: null,
+    })
   })
 })
