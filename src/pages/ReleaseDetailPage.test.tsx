@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Outlet, RouterProvider, createMemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -24,9 +24,19 @@ const artistMocks = vi.hoisted(() => ({
   getArtists: vi.fn(),
 }))
 
+const mediaMocks = vi.hoisted(() => ({
+  getMediaDownloadUrls: vi.fn(),
+  uploadMedia: vi.fn(),
+}))
+
 vi.mock('../lib/releases.ts', async (importOriginal) => {
   const original = await importOriginal<typeof import('../lib/releases.ts')>()
   return { ...original, ...releaseMocks }
+})
+
+vi.mock('../lib/media.ts', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../lib/media.ts')>()
+  return { ...original, ...mediaMocks }
 })
 
 vi.mock('../lib/artists.ts', async (importOriginal) => {
@@ -120,6 +130,8 @@ function renderRelease(
 
 beforeEach(() => {
   artistMocks.getArtists.mockReset()
+  mediaMocks.getMediaDownloadUrls.mockReset()
+  mediaMocks.uploadMedia.mockReset()
   releaseMocks.getRelease.mockReset()
   releaseMocks.addReleaseArtist.mockReset()
   releaseMocks.createContentBlock.mockReset()
@@ -155,6 +167,14 @@ beforeEach(() => {
       previous_cursor: null,
       has_more: false,
     },
+  })
+  mediaMocks.getMediaDownloadUrls.mockResolvedValue(new Map())
+  mediaMocks.uploadMedia.mockResolvedValue({
+    id: 'media-1',
+    status: 'ready',
+    mime_type: 'image/png',
+    width: 800,
+    height: 800,
   })
   releaseMocks.getRelease.mockResolvedValue(release)
   releaseMocks.addReleaseArtist.mockResolvedValue({
@@ -374,6 +394,47 @@ describe('ReleaseDetailPage', () => {
       'page-1',
       'block-1',
     )
+  })
+
+  it('uploads media for image content blocks', async () => {
+    const browserUser = userEvent.setup()
+    const file = new File(['image'], 'studio.png', { type: 'image/png' })
+    releaseMocks.getRelease.mockResolvedValue({
+      ...release,
+      editor_user_ids: ['label-user-1'],
+      pages: [{ id: 'page-1', position: 1, title: 'Story', blocks: [] }],
+    })
+
+    renderRelease()
+
+    await screen.findByText('Ingen blokker ennå.')
+    await browserUser.selectOptions(screen.getByLabelText('Blokktype'), 'image')
+    await browserUser.upload(screen.getByLabelText('Last opp media'), file)
+    await screen.findByText(
+      'Media er lastet opp. Lagre blokken for å bruke den.',
+    )
+    await browserUser.type(screen.getByLabelText('Alternativ tekst'), 'Studio')
+    await browserUser.click(
+      screen.getByRole('button', { name: 'Legg til blokk' }),
+    )
+
+    await waitFor(() =>
+      expect(mediaMocks.uploadMedia).toHaveBeenCalledWith(
+        'organization',
+        'label-1',
+        'image',
+        file,
+      ),
+    )
+    expect(releaseMocks.createContentBlock).toHaveBeenCalledWith('page-1', {
+      position: 1,
+      type: 'image',
+      payload: {
+        media_id: 'media-1',
+        alt_text: 'Studio',
+        caption: null,
+      },
+    })
   })
 
   it('keeps Artist User from editing unassigned artist releases', async () => {

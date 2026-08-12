@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getMediaDownloadUrls, uploadImage } from './media.ts'
+import { getMediaDownloadUrls, uploadImage, uploadMedia } from './media.ts'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -51,6 +51,55 @@ describe('media API', () => {
       },
     )
     expect(fetchMock.mock.calls[2]?.[1]).not.toHaveProperty('credentials')
+  })
+
+  it('creates reusable video media with the requested kind', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ id: 'media-1' }, 201))
+      .mockResolvedValueOnce(
+        jsonResponse(
+          {
+            id: 'upload-1',
+            method: 'PUT',
+            url: 'https://storage.example.test/video?token=secret',
+            mime_type: 'video/mp4',
+            maximum_byte_size: 25_000_000,
+          },
+          201,
+        ),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          id: 'media-1',
+          status: 'ready',
+          mime_type: 'video/mp4',
+          width: null,
+          height: null,
+        }),
+      )
+
+    const file = new File(['video'], 'clip.mp4', { type: 'video/mp4' })
+    await uploadMedia('organization', 'label-1', 'video', file)
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      new URL('http://localhost:8000/api/v1/media'),
+      expect.objectContaining({
+        body: JSON.stringify({
+          owner_type: 'organization',
+          owner_id: 'label-1',
+          kind: 'video',
+          original_filename: 'clip.mp4',
+          mime_type: 'video/mp4',
+          byte_size: file.size,
+          width: null,
+          height: null,
+          metadata: null,
+        }),
+      }),
+    )
   })
 
   it('gets temporary download URLs in one Laravel request', async () => {

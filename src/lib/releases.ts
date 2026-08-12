@@ -46,6 +46,15 @@ export type ReleaseContentBlockType =
 export type ReleaseContentBlockPayload =
   | { text: string; level: number }
   | { body: string }
+  | { media_id: string; alt_text: string; caption: string | null }
+  | {
+      items: Array<{
+        media_id: string
+        alt_text: string
+        caption: string | null
+      }>
+    }
+  | { url: string | null; media_id: string | null; caption: string | null }
   | { text: string; attribution: string | null }
   | { text: string; language: string | null }
   | Record<string, unknown>

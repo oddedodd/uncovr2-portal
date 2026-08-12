@@ -7,6 +7,13 @@ import { ImageUploadField } from '../components/ImageUploadField.tsx'
 import { SubmitButton } from '../components/SubmitButton.tsx'
 import { fieldError, formError } from '../features/auth/validation.ts'
 import { artistKeys, getArtists } from '../lib/artists.ts'
+import {
+  getMediaDownloadUrls,
+  mediaKeys,
+  uploadMedia,
+  type MediaKind,
+  type MediaOwnerType,
+} from '../lib/media.ts'
 import type { PortalOutletContext } from '../lib/portal.ts'
 import {
   addReleaseArtist,
@@ -62,6 +69,33 @@ function blockPayload(type: ReleaseContentBlockType, data: FormData) {
       attribution: optionalString(data, 'attribution'),
     }
   }
+  if (type === 'image') {
+    return {
+      media_id: String(data.get('media_id') ?? '').trim(),
+      alt_text: String(data.get('alt_text') ?? '').trim(),
+      caption: optionalString(data, 'caption'),
+    }
+  }
+  if (type === 'gallery') {
+    return {
+      items: [
+        {
+          media_id: String(data.get('media_id') ?? '').trim(),
+          alt_text: String(data.get('alt_text') ?? '').trim(),
+          caption: optionalString(data, 'caption'),
+        },
+      ],
+    }
+  }
+  if (type === 'video') {
+    const mediaId = optionalString(data, 'media_id')
+    const url = optionalString(data, 'url')
+    return {
+      media_id: url ? null : mediaId,
+      url: mediaId ? null : url,
+      caption: optionalString(data, 'caption'),
+    }
+  }
   return {
     text: String(data.get('text') ?? '').trim(),
     language: optionalString(data, 'language'),
@@ -86,10 +120,62 @@ function blockLevelValue(payload: ReleaseContentBlockPayload) {
     : 2
 }
 
+function blockMediaId(block?: ReleaseContentBlock) {
+  const payload = block?.payload
+  if (!payload) return ''
+  if ('media_id' in payload && typeof payload.media_id === 'string') {
+    return payload.media_id
+  }
+  if ('items' in payload && Array.isArray(payload.items)) {
+    const first = payload.items[0] as Record<string, unknown> | undefined
+    return typeof first?.media_id === 'string' ? first.media_id : ''
+  }
+  return ''
+}
+
+function blockCaptionValue(block?: ReleaseContentBlock) {
+  const payload = block?.payload
+  if (!payload) return ''
+  if ('caption' in payload && typeof payload.caption === 'string') {
+    return payload.caption
+  }
+  if ('items' in payload && Array.isArray(payload.items)) {
+    const first = payload.items[0] as Record<string, unknown> | undefined
+    return typeof first?.caption === 'string' ? first.caption : ''
+  }
+  return ''
+}
+
+function blockAltTextValue(block?: ReleaseContentBlock) {
+  const payload = block?.payload
+  if (!payload) return ''
+  if ('alt_text' in payload && typeof payload.alt_text === 'string') {
+    return payload.alt_text
+  }
+  if ('items' in payload && Array.isArray(payload.items)) {
+    const first = payload.items[0] as Record<string, unknown> | undefined
+    return typeof first?.alt_text === 'string' ? first.alt_text : ''
+  }
+  return ''
+}
+
+function blockVideoUrlValue(block?: ReleaseContentBlock) {
+  const payload = block?.payload
+  return payload && 'url' in payload && typeof payload.url === 'string'
+    ? payload.url
+    : ''
+}
+
+function mediaKindForBlock(type: ReleaseContentBlockType): MediaKind {
+  return type === 'video' ? 'video' : 'image'
+}
+
 function ContentBlockForm({
   block,
   defaultPosition = 1,
   disabled,
+  ownerId,
+  ownerType,
   onDelete,
   onSubmit,
   pending,
@@ -97,6 +183,8 @@ function ContentBlockForm({
   block?: ReleaseContentBlock
   defaultPosition?: number
   disabled?: boolean
+  ownerId: string
+  ownerType: MediaOwnerType
   onDelete?: () => void
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
   pending: boolean
@@ -104,7 +192,26 @@ function ContentBlockForm({
   const [type, setType] = useState<ReleaseContentBlockType>(
     block?.type ?? 'text',
   )
+  const [mediaId, setMediaId] = useState(blockMediaId(block))
+  const [uploadNotice, setUploadNotice] = useState<string | null>(null)
   const text = block ? blockTextValue(block) : ''
+  const showsMediaFields = ['image', 'gallery', 'video'].includes(type)
+  const mediaDownload = useQuery({
+    queryKey: mediaKeys.downloads(mediaId ? [mediaId] : []),
+    queryFn: () => getMediaDownloadUrls(mediaId ? [mediaId] : []),
+    enabled: Boolean(mediaId),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  })
+  const mediaUpload = useMutation({
+    mutationFn: (file: File) =>
+      uploadMedia(ownerType, ownerId, mediaKindForBlock(type), file),
+    onSuccess: (media) => {
+      setMediaId(media.id)
+      setUploadNotice('Media er lastet opp. Lagre blokken for å bruke den.')
+    },
+  })
+  const mediaUrl = mediaId ? mediaDownload.data?.get(mediaId) : undefined
 
   return (
     <Form className="content-block-form" method="post" onSubmit={onSubmit}>
@@ -120,6 +227,9 @@ function ContentBlockForm({
         >
           <option value="text">Tekst</option>
           <option value="heading">Overskrift</option>
+          <option value="image">Bilde</option>
+          <option value="gallery">Galleri</option>
+          <option value="video">Video</option>
           <option value="quote">Sitat</option>
           <option value="lyrics">Lyrikk</option>
         </select>
@@ -163,6 +273,83 @@ function ContentBlockForm({
             rows={5}
           />
         </div>
+      ) : null}
+      {showsMediaFields ? (
+        <>
+          <div className="form-field content-block-form__wide">
+            <label htmlFor={`${block?.id ?? 'new'}-media-file`}>
+              Last opp media
+            </label>
+            <input
+              accept={
+                type === 'video'
+                  ? 'video/mp4,video/webm,video/quicktime'
+                  : 'image/jpeg,image/png,image/webp,image/avif'
+              }
+              disabled={disabled || mediaUpload.isPending}
+              id={`${block?.id ?? 'new'}-media-file`}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0]
+                if (file) {
+                  setUploadNotice(null)
+                  mediaUpload.mutate(file)
+                }
+                event.currentTarget.value = ''
+              }}
+              type="file"
+            />
+          </div>
+          {mediaUpload.isError ? (
+            <FeedbackBanner title="Media kunne ikke lastes opp" tone="error">
+              {formError(mediaUpload.error)}
+            </FeedbackBanner>
+          ) : null}
+          {uploadNotice ? (
+            <p className="image-field__notice" role="status">
+              {uploadNotice}
+            </p>
+          ) : null}
+          {mediaUrl ? (
+            <div className="content-block-form__media-preview">
+              {type === 'video' ? (
+                <video controls src={mediaUrl} />
+              ) : (
+                <img alt="" src={mediaUrl} />
+              )}
+            </div>
+          ) : null}
+          <FormField
+            error={fieldError(mediaUpload.error, 'media_id')}
+            label="Media ID"
+            name="media_id"
+            onChange={(event) => setMediaId(event.currentTarget.value.trim())}
+            required={type !== 'video'}
+            value={mediaId}
+          />
+          {type === 'video' ? (
+            <FormField
+              defaultValue={blockVideoUrlValue(block)}
+              label="Video-URL"
+              name="url"
+              placeholder="https://"
+              type="url"
+            />
+          ) : (
+            <FormField
+              defaultValue={blockAltTextValue(block)}
+              label="Alternativ tekst"
+              maxLength={500}
+              name="alt_text"
+              required
+            />
+          )}
+          <FormField
+            defaultValue={blockCaptionValue(block)}
+            label="Bildetekst"
+            maxLength={2000}
+            name="caption"
+          />
+        </>
       ) : null}
       {type === 'quote' ? (
         <>
@@ -735,6 +922,8 @@ export function ReleaseDetailPage() {
                                 disabled={
                                   updateBlock.isPending || deleteBlock.isPending
                                 }
+                                ownerId={current.owner.id}
+                                ownerType={current.owner.type}
                                 pending={updateBlock.isPending}
                                 onDelete={() =>
                                   deleteBlock.mutate({
@@ -762,6 +951,8 @@ export function ReleaseDetailPage() {
                     <ContentBlockForm
                       defaultPosition={(page.blocks ?? []).length + 1}
                       disabled={createBlock.isPending}
+                      ownerId={current.owner.id}
+                      ownerType={current.owner.type}
                       pending={createBlock.isPending}
                       onSubmit={(event) => handleBlockSubmit(event, page)}
                     />

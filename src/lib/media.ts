@@ -45,9 +45,12 @@ export async function deleteMedia(mediaId: string) {
   })
 }
 
-export async function uploadImage(
+export type MediaKind = 'image' | 'audio' | 'video' | 'document'
+
+export async function uploadMedia(
   ownerType: MediaOwnerType,
   ownerId: string,
+  kind: MediaKind,
   file: File,
 ): Promise<MediaReference> {
   const created = await apiRequest<{ id: string }>('/api/v1/media', {
@@ -55,7 +58,7 @@ export async function uploadImage(
     body: JSON.stringify({
       owner_type: ownerType,
       owner_id: ownerId,
-      kind: 'image',
+      kind,
       original_filename: file.name,
       mime_type: file.type,
       byte_size: file.size,
@@ -94,4 +97,12 @@ export async function uploadImage(
     await deleteMedia(mediaId).catch(() => undefined)
     throw error
   }
+}
+
+export function uploadImage(
+  ownerType: MediaOwnerType,
+  ownerId: string,
+  file: File,
+) {
+  return uploadMedia(ownerType, ownerId, 'image', file)
 }
