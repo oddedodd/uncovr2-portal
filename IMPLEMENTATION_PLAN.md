@@ -98,12 +98,12 @@ Portal feature work begins after the backend-to-portal gate for B0 through B6 pa
 - [x] `P4.2` Build artist team invitations, roles and removal.
 - [x] `P4.3` Build release listing with status, ownership and assignment filters.
 - [x] `P4.4` Build release creation and basic metadata editing.
-- [ ] `P4.5` Verify Artist User restrictions for owned and assigned work.
+- [x] `P4.5` Verify Artist User restrictions for owned and assigned work.
 
 ### P4 gate
 
-- [ ] Artist Admin can manage its profile, team and releases.
-- [ ] Artist User cannot administer roles or alter another user's unassigned work.
+- [x] Artist Admin can manage its profile, team and releases.
+- [x] Artist User cannot administer roles or alter another user's unassigned work.
 
 ## P5 — Release builder
 

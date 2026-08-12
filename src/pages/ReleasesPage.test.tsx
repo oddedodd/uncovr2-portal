@@ -80,10 +80,15 @@ const releasePage: ReleasePage = {
   },
 }
 
-function renderReleases() {
+function renderReleases(
+  contextUser: CurrentUser = user,
+  contextWorkspace: Workspace = workspace,
+) {
   const router = createMemoryRouter([
     {
-      element: <Outlet context={{ user, workspace }} />,
+      element: (
+        <Outlet context={{ user: contextUser, workspace: contextWorkspace }} />
+      ),
       children: [{ path: '/', element: <ReleasesPage /> }],
     },
   ])
@@ -137,5 +142,34 @@ describe('ReleasesPage', () => {
         { status: 'published' },
       ),
     )
+  })
+
+  it('hides release creation from Artist User workspaces', async () => {
+    renderReleases(user, {
+      id: 'artist-1',
+      type: 'artist',
+      name: 'Lumen',
+      role: 'artist_user',
+      status: 'active',
+    })
+
+    expect(await screen.findByText('Signal')).toBeVisible()
+    expect(
+      screen.queryByRole('link', { name: 'Opprett utgivelse' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows release creation to Artist Admin workspaces', async () => {
+    renderReleases(user, {
+      id: 'artist-1',
+      type: 'artist',
+      name: 'Lumen',
+      role: 'artist_admin',
+      status: 'active',
+    })
+
+    expect(
+      await screen.findByRole('link', { name: 'Opprett utgivelse' }),
+    ).toHaveAttribute('href', '/releases/new')
   })
 })
