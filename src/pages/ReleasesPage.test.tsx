@@ -4,7 +4,7 @@ import { Outlet, RouterProvider, createMemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppProviders } from '../app/AppProviders.tsx'
 import type { CurrentUser, Workspace } from '../lib/auth.ts'
-import type { Release, ReleasePage } from '../lib/releases.ts'
+import type { ReleasePage, ReleaseSummary } from '../lib/releases.ts'
 import { ReleasesPage } from './ReleasesPage.tsx'
 
 const releaseMocks = vi.hoisted(() => ({
@@ -40,16 +40,14 @@ const workspace: Workspace = {
   status: 'active',
 }
 
-const baseRelease: Release = {
+const baseRelease: ReleaseSummary = {
   id: 'release-1',
   owner: { type: 'organization', id: 'label-1' },
   type: 'single',
   status: 'draft',
   title: 'Signal',
   subtitle: null,
-  description: null,
   release_date: null,
-  upc: null,
   cover_media_id: null,
   cover_media: null,
   artists: [
@@ -82,12 +80,17 @@ const releasePage: ReleasePage = {
 
 function renderReleases(
   contextUser: CurrentUser = user,
-  contextWorkspace: Workspace = workspace,
+  contextWorkspace: Workspace | null = workspace,
 ) {
   const router = createMemoryRouter([
     {
       element: (
-        <Outlet context={{ user: contextUser, workspace: contextWorkspace }} />
+        <Outlet
+          context={{
+            user: contextUser,
+            workspace: contextWorkspace ?? undefined,
+          }}
+        />
       ),
       children: [{ path: '/', element: <ReleasesPage /> }],
     },
@@ -139,9 +142,30 @@ describe('ReleasesPage', () => {
     await waitFor(() =>
       expect(releaseMocks.getReleases).toHaveBeenLastCalledWith(
         {},
-        { status: 'published' },
+        {
+          owner_id: 'label-1',
+          owner_type: 'organization',
+          status: 'published',
+        },
       ),
     )
+  })
+
+  it('scopes organization workspaces to organization-owned releases', async () => {
+    renderReleases()
+
+    await screen.findByText('Signal')
+
+    expect(releaseMocks.getReleases).toHaveBeenLastCalledWith(
+      {},
+      { owner_id: 'label-1', owner_type: 'organization' },
+    )
+  })
+
+  it('waits for workspace bootstrap before requesting releases', () => {
+    renderReleases(user, null)
+
+    expect(releaseMocks.getReleases).not.toHaveBeenCalled()
   })
 
   it('hides release creation from Artist User workspaces', async () => {
@@ -157,6 +181,10 @@ describe('ReleasesPage', () => {
     expect(
       screen.queryByRole('link', { name: 'Opprett utgivelse' }),
     ).not.toBeInTheDocument()
+    expect(releaseMocks.getReleases).toHaveBeenLastCalledWith(
+      {},
+      { artist_id: 'artist-1' },
+    )
   })
 
   it('shows release creation to Artist Admin workspaces', async () => {

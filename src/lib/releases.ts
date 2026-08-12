@@ -2,16 +2,14 @@ import { apiRequest } from './api.ts'
 import type { MediaReference } from './media.ts'
 import type { CursorPagination } from './platformSearch.ts'
 
-export interface Release {
+export interface ReleaseSummary {
   id: string
   owner: { type: 'organization' | 'artist'; id: string }
   type: string
   status: string
   title: string
   subtitle: string | null
-  description: string | null
   release_date: string | null
-  upc: string | null
   cover_media_id: string | null
   cover_media: MediaReference | null
   artists: Array<{
@@ -21,9 +19,14 @@ export interface Release {
     position: number
   }>
   editor_user_ids: string[]
-  pages?: ReleaseContentPage[]
   created_at: string
   updated_at: string
+}
+
+export interface Release extends ReleaseSummary {
+  description: string | null
+  upc: string | null
+  pages?: ReleaseContentPage[]
 }
 
 export interface ReleaseContentPage {
@@ -68,11 +71,14 @@ export interface ReleaseContentBlock {
 }
 
 export interface ReleasePage {
-  data: Release[]
+  data: ReleaseSummary[]
   pagination: CursorPagination
 }
 
 export interface ReleaseListFilters {
+  artist_id?: string
+  owner_id?: string
+  owner_type?: 'organization' | 'artist'
   search?: string
   status?: string
   type?: string
@@ -131,11 +137,14 @@ export async function getReleases(
   const params = new URLSearchParams({ 'page[size]': '25' })
   if (cursor.after) params.set('page[after]', cursor.after)
   if (cursor.before) params.set('page[before]', cursor.before)
+  if (filters.artist_id) params.set('filter[artist_id]', filters.artist_id)
+  if (filters.owner_type) params.set('filter[owner_type]', filters.owner_type)
+  if (filters.owner_id) params.set('filter[owner_id]', filters.owner_id)
   if (filters.search?.trim())
     params.set('filter[search]', filters.search.trim())
   if (filters.status) params.set('filter[status]', filters.status)
   if (filters.type) params.set('filter[type]', filters.type)
-  const response = await apiRequest<Release[]>(
+  const response = await apiRequest<ReleaseSummary[]>(
     `/api/v1/releases?${params.toString()}`,
   )
   const meta = response.meta as ReleasePaginationMeta | undefined

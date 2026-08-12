@@ -1,11 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { authKeys, getCurrentWorkspaces } from '../../lib/auth.ts'
 
+const authBootstrapStaleTimeMs = 5 * 60 * 1000
+
 export function useWorkspaces() {
   return useQuery({
     queryKey: authKeys.workspaces,
     queryFn: getCurrentWorkspaces,
     retry: false,
-    staleTime: 30_000,
+    staleTime: authBootstrapStaleTimeMs,
   })
 }

@@ -9,8 +9,8 @@ import type { PortalOutletContext } from '../lib/portal.ts'
 import {
   getReleases,
   releaseKeys,
-  type Release,
   type ReleaseListFilters,
+  type ReleaseSummary,
 } from '../lib/releases.ts'
 import { WorkspaceSectionPage } from './WorkspaceSectionPage.tsx'
 
@@ -42,7 +42,7 @@ const assignmentOptions: Array<{ value: AssignmentFilter; label: string }> = [
 ]
 
 function releaseMatchesOwnership(
-  release: Release,
+  release: ReleaseSummary,
   filter: OwnershipFilter,
   workspace: PortalOutletContext['workspace'],
 ) {
@@ -57,7 +57,7 @@ function releaseMatchesOwnership(
 }
 
 function releaseMatchesAssignment(
-  release: Release,
+  release: ReleaseSummary,
   filter: AssignmentFilter,
   userId: string,
 ) {
@@ -73,9 +73,23 @@ export function ReleasesPage() {
   const [serverFilters, setServerFilters] = useState<ReleaseListFilters>({})
   const [ownership, setOwnership] = useState<OwnershipFilter>('all')
   const [assignment, setAssignment] = useState<AssignmentFilter>('all')
+  const effectiveFilters = useMemo<ReleaseListFilters>(() => {
+    if (workspace?.type === 'artist') {
+      return { ...serverFilters, artist_id: workspace.id }
+    }
+    if (workspace?.type === 'organization') {
+      return {
+        ...serverFilters,
+        owner_id: workspace.id,
+        owner_type: 'organization',
+      }
+    }
+    return serverFilters
+  }, [serverFilters, workspace])
   const releases = useQuery({
-    queryKey: releaseKeys.list(cursor, serverFilters),
-    queryFn: () => getReleases(cursor, serverFilters),
+    queryKey: releaseKeys.list(cursor, effectiveFilters),
+    queryFn: () => getReleases(cursor, effectiveFilters),
+    enabled: Boolean(workspace),
     retry: false,
   })
   const visibleReleases = useMemo(
@@ -128,8 +142,7 @@ export function ReleasesPage() {
         <div>
           <h1 className="page-title">Utgivelser</h1>
           <p className="page-intro">
-            Alle utgivelser Laravel gir rollen din tilgang til, også på tvers av
-            labelens artister.
+            Utgivelser Laravel gir det aktive arbeidsområdet tilgang til.
           </p>
         </div>
         {canCreateRelease ? (

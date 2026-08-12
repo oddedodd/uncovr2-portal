@@ -44,12 +44,19 @@ describe('release API', () => {
 
     await getReleases(
       { after: 'cursor-next' },
-      { search: ' Signal ', status: 'published', type: 'single' },
+      {
+        artist_id: 'artist-1',
+        owner_id: 'label-1',
+        owner_type: 'organization',
+        search: ' Signal ',
+        status: 'published',
+        type: 'single',
+      },
     )
 
     expect(fetchMock).toHaveBeenCalledWith(
       new URL(
-        'http://localhost:8000/api/v1/releases?page%5Bsize%5D=25&page%5Bafter%5D=cursor-next&filter%5Bsearch%5D=Signal&filter%5Bstatus%5D=published&filter%5Btype%5D=single',
+        'http://localhost:8000/api/v1/releases?page%5Bsize%5D=25&page%5Bafter%5D=cursor-next&filter%5Bartist_id%5D=artist-1&filter%5Bowner_type%5D=organization&filter%5Bowner_id%5D=label-1&filter%5Bsearch%5D=Signal&filter%5Bstatus%5D=published&filter%5Btype%5D=single',
       ),
       expect.objectContaining({ credentials: 'include' }),
     )
