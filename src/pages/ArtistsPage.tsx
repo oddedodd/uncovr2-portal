@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useOutletContext } from 'react-router'
 import { FeedbackBanner } from '../components/FeedbackBanner.tsx'
 import { MediaThumbnail } from '../components/MediaThumbnail.tsx'
@@ -42,13 +42,20 @@ export function ArtistsPage() {
     queryFn: () => getArtists(cursor),
     retry: false,
   })
-  const imageIds =
-    artists.data?.data
-      .map(
-        (artist) =>
-          (artist.profile.logo_media ?? artist.profile.image_media)?.id,
-      )
-      .filter((id): id is string => Boolean(id)) ?? []
+  const imageIds = useMemo(
+    () =>
+      [
+        ...new Set(
+          artists.data?.data
+            .map(
+              (artist) =>
+                (artist.profile.logo_media ?? artist.profile.image_media)?.id,
+            )
+            .filter((id): id is string => Boolean(id)) ?? [],
+        ),
+      ].sort(),
+    [artists.data?.data],
+  )
   const images = useQuery({
     queryKey: mediaKeys.downloads(imageIds),
     queryFn: () => getMediaDownloadUrls(imageIds),

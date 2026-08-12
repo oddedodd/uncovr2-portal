@@ -101,10 +101,17 @@ export function ReleasesPage() {
       ) ?? [],
     [assignment, ownership, releases.data?.data, user.id, workspace],
   )
-  const coverIds =
-    visibleReleases
-      .map((release) => release.cover_media?.id)
-      .filter((id): id is string => Boolean(id)) ?? []
+  const coverIds = useMemo(
+    () =>
+      [
+        ...new Set(
+          visibleReleases
+            .map((release) => release.cover_media?.id)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ].sort(),
+    [visibleReleases],
+  )
   const covers = useQuery({
     queryKey: mediaKeys.downloads(coverIds),
     queryFn: () => getMediaDownloadUrls(coverIds),

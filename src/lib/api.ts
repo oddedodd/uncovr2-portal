@@ -47,10 +47,9 @@ function readCookie(name: string): string | undefined {
   return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : undefined
 }
 
-function requestHeaders(init: RequestInit, requestId: string): Headers {
+function requestHeaders(init: RequestInit): Headers {
   const headers = new Headers(init.headers)
   headers.set('Accept', 'application/json')
-  headers.set('X-Request-ID', requestId)
 
   if (
     init.body &&
@@ -80,25 +79,25 @@ export async function apiRequest<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<ApiSuccess<T>> {
-  const requestId = crypto.randomUUID()
   let response: Response
 
   try {
     response = await fetch(new URL(path, env.VITE_API_URL), {
       ...init,
       credentials: 'include',
-      headers: requestHeaders(init, requestId),
+      headers: requestHeaders(init),
     })
   } catch {
     throw new ApiError(
       0,
       'network_error',
       'Kunne ikke kontakte Uncovr API-et.',
-      requestId,
+      crypto.randomUUID(),
     )
   }
   const body = await parseBody(response)
-  const responseRequestId = response.headers.get('X-Request-ID') ?? requestId
+  const responseRequestId =
+    response.headers.get('X-Request-ID') ?? crypto.randomUUID()
 
   if (!response.ok) {
     const parsedError = errorEnvelopeSchema.safeParse(body)
