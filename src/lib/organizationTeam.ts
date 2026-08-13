@@ -18,9 +18,13 @@ export const organizationTeamKeys = {
     ['organizations', organizationId, 'members'] as const,
 }
 
-export function getOrganizationMembers(organizationId: string) {
+export function getOrganizationMembers(
+  organizationId: string,
+  signal?: AbortSignal,
+) {
   return apiRequest<OrganizationMember[]>(
     `/api/v1/organizations/${organizationId}/members`,
+    { signal },
   ).then((response) => response.data)
 }
 

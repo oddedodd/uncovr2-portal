@@ -115,8 +115,14 @@ Portal feature work begins after the backend-to-portal gate for B0 through B6 pa
   - [x] Reuse the secure media flow for release cover upload, replacement and removal.
 - [ ] `P5.6` Build streaming-link and credit editors.
 - [ ] `P5.7` Build responsive preview using the public release representation.
-- [ ] `P5.8` Build review, approval, scheduling, publishing and unpublishing controls.
+- [x] `P5.8` Build review, approval, scheduling, publishing and unpublishing controls.
 - [ ] `P5.9` Preserve unsaved-work warnings and actionable validation feedback.
+- [x] `P5.10` Drive builder and lifecycle controls from the per-release
+      `permissions` block, and assign editors from the release itself.
+  - [x] Show the assignment panel only when `permissions.can_manage_editors`.
+  - [x] Default Artist User release listing to `filter[assigned_to_me]`.
+  - [x] Render the builder read-only when `permissions.can_update` is false, and
+        separate a missing assignment from a status-locked release.
 
 ## P6 — Portal quality and demo readiness
 

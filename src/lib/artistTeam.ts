@@ -26,10 +26,10 @@ export const artistTeamKeys = {
   all: (artistId: string) => ['artists', artistId, 'members'] as const,
 }
 
-export function getArtistMembers(artistId: string) {
-  return apiRequest<ArtistMember[]>(`/api/v1/artists/${artistId}/members`).then(
-    (response) => response.data,
-  )
+export function getArtistMembers(artistId: string, signal?: AbortSignal) {
+  return apiRequest<ArtistMember[]>(`/api/v1/artists/${artistId}/members`, {
+    signal,
+  }).then((response) => response.data)
 }
 
 export function inviteArtistMember(

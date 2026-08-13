@@ -7,25 +7,29 @@ import { formError } from '../features/auth/validation.ts'
 import { useMediaUrls } from '../features/media/useMediaUrl.ts'
 import type { PortalOutletContext } from '../lib/portal.ts'
 import {
-  getReleases,
-  releaseKeys,
+  releaseStatusLabel,
   type ReleaseListFilters,
   type ReleaseSummary,
 } from '../lib/releases.ts'
 import { WorkspaceSectionPage } from './WorkspaceSectionPage.tsx'
+import { releaseListQueryOptions } from '../lib/queryOptions.ts'
 
 type CursorState = { after?: string; before?: string }
 type OwnershipFilter = 'all' | 'current' | 'organization' | 'artist'
-type AssignmentFilter = 'all' | 'assigned-to-me' | 'not-assigned-to-me'
+type AssignmentFilter = 'all' | 'assigned-to-me'
 
 const statusOptions = [
   { value: '', label: 'Alle statuser' },
-  { value: 'draft', label: 'Utkast' },
-  { value: 'review', label: 'Til vurdering' },
-  { value: 'scheduled', label: 'Planlagt' },
-  { value: 'published', label: 'Publisert' },
-  { value: 'unpublished', label: 'Avpublisert' },
-  { value: 'archived', label: 'Arkivert' },
+  ...(
+    [
+      'draft',
+      'review',
+      'scheduled',
+      'published',
+      'unpublished',
+      'archived',
+    ] as const
+  ).map((status) => ({ value: status, label: releaseStatusLabel(status) })),
 ]
 
 const ownershipOptions: Array<{ value: OwnershipFilter; label: string }> = [
@@ -36,10 +40,20 @@ const ownershipOptions: Array<{ value: OwnershipFilter; label: string }> = [
 ]
 
 const assignmentOptions: Array<{ value: AssignmentFilter; label: string }> = [
-  { value: 'all', label: 'Alle tildelinger' },
-  { value: 'assigned-to-me', label: 'Tildelt meg' },
-  { value: 'not-assigned-to-me', label: 'Ikke tildelt meg' },
+  { value: 'all', label: 'Alle utgivelser' },
+  { value: 'assigned-to-me', label: 'Mine utgivelser' },
 ]
+
+/**
+ * En artist_user ser alle artistens utkast, men kan bare redigere de tildelte.
+ * «Mine utgivelser» er derfor standardvisningen der. En artist_admin som aldri
+ * tildelte seg selv ville fått en tom liste, så admin-rollene starter på alle.
+ */
+function defaultAssignment(
+  workspace: PortalOutletContext['workspace'],
+): AssignmentFilter {
+  return workspace?.role === 'artist_user' ? 'assigned-to-me' : 'all'
+}
 
 function releaseMatchesOwnership(
   release: ReleaseSummary,
@@ -56,50 +70,42 @@ function releaseMatchesOwnership(
   return release.owner.type === filter
 }
 
-function releaseMatchesAssignment(
-  release: ReleaseSummary,
-  filter: AssignmentFilter,
-  userId: string,
-) {
-  const assignedToUser = release.editor_user_ids.includes(userId)
-  if (filter === 'assigned-to-me') return assignedToUser
-  if (filter === 'not-assigned-to-me') return !assignedToUser
-  return true
-}
-
 export function ReleasesPage() {
-  const { user, workspace } = useOutletContext<PortalOutletContext>()
+  const { workspace } = useOutletContext<PortalOutletContext>()
   const [cursor, setCursor] = useState<CursorState>({})
   const [serverFilters, setServerFilters] = useState<ReleaseListFilters>({})
   const [ownership, setOwnership] = useState<OwnershipFilter>('all')
-  const [assignment, setAssignment] = useState<AssignmentFilter>('all')
+  // Standardvalget avhenger av arbeidsområdet, som ikke er kjent ved første
+  // render. `null` betyr «ikke valgt av brukeren ennå», så standarden kan
+  // følge arbeidsområdet uten en effekt som overstyrer et aktivt valg.
+  const [assignment, setAssignment] = useState<AssignmentFilter | null>(null)
+  const activeAssignment = assignment ?? defaultAssignment(workspace)
+  const assignedToMe = activeAssignment === 'assigned-to-me'
   const effectiveFilters = useMemo<ReleaseListFilters>(() => {
+    const assigned = assignedToMe ? { assigned_to_me: true } : {}
     if (workspace?.type === 'artist') {
-      return { ...serverFilters, artist_id: workspace.id }
+      return { ...serverFilters, ...assigned, artist_id: workspace.id }
     }
     if (workspace?.type === 'organization') {
       return {
         ...serverFilters,
+        ...assigned,
         owner_id: workspace.id,
         owner_type: 'organization',
       }
     }
-    return serverFilters
-  }, [serverFilters, workspace])
+    return { ...serverFilters, ...assigned }
+  }, [assignedToMe, serverFilters, workspace])
   const releases = useQuery({
-    queryKey: releaseKeys.list(cursor, effectiveFilters),
-    queryFn: () => getReleases(cursor, effectiveFilters),
+    ...releaseListQueryOptions(cursor, effectiveFilters),
     enabled: Boolean(workspace),
-    retry: false,
   })
   const visibleReleases = useMemo(
     () =>
-      releases.data?.data.filter(
-        (release) =>
-          releaseMatchesOwnership(release, ownership, workspace) &&
-          releaseMatchesAssignment(release, assignment, user.id),
+      releases.data?.data.filter((release) =>
+        releaseMatchesOwnership(release, ownership, workspace),
       ) ?? [],
-    [assignment, ownership, releases.data?.data, user.id, workspace],
+    [ownership, releases.data?.data, workspace],
   )
   // Utledes fra serversvaret, ikke fra den klientfiltrerte lista: da endrer
   // ikke et filterbytte hvilke medier som er hentet.
@@ -124,6 +130,10 @@ export function ReleasesPage() {
     setCursor({})
     setAssignment(event.target.value as AssignmentFilter)
   }
+
+  const emptyListMessage = assignedToMe
+    ? 'Ingen utgivelser er tildelt deg ennå.'
+    : 'Ingen utgivelser er opprettet ennå.'
 
   const canCreateRelease =
     (workspace.type === 'organization' && workspace.role === 'label_admin') ||
@@ -199,7 +209,7 @@ export function ReleasesPage() {
             <select
               id="release-assignment-filter"
               onChange={updateAssignment}
-              value={assignment}
+              value={activeAssignment}
             >
               {assignmentOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -212,9 +222,7 @@ export function ReleasesPage() {
         {releases.isPending ? (
           <p aria-live="polite">Henter utgivelser …</p>
         ) : releases.data?.data.length === 0 ? (
-          <div className="inline-empty">
-            Ingen utgivelser er opprettet ennå.
-          </div>
+          <div className="inline-empty">{emptyListMessage}</div>
         ) : visibleReleases.length === 0 ? (
           <div className="inline-empty">
             Ingen utgivelser matcher filtrene på denne siden.
@@ -241,7 +249,7 @@ export function ReleasesPage() {
                   </span>
                 </div>
                 <span className={`status-pill status-pill--${release.status}`}>
-                  {release.status}
+                  {releaseStatusLabel(release.status)}
                 </span>
               </li>
             ))}

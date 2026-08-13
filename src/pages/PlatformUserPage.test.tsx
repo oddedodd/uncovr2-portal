@@ -97,7 +97,10 @@ describe('PlatformUserPage', () => {
     )
     expect(screen.getByText('Northern Echo')).toBeVisible()
     expect(screen.getByText('First Light')).toBeVisible()
-    expect(platformUserMocks.getPlatformUser).toHaveBeenCalledWith('user-1')
+    expect(platformUserMocks.getPlatformUser).toHaveBeenCalledWith(
+      'user-1',
+      expect.any(AbortSignal),
+    )
   })
 
   it('requires audit context before correcting a membership role', async () => {

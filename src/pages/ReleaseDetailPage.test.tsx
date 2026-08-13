@@ -3,17 +3,23 @@ import userEvent from '@testing-library/user-event'
 import { Outlet, RouterProvider, createMemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppProviders } from '../app/AppProviders.tsx'
+import { createQueryClient } from '../app/queryClient.ts'
+import { ApiError } from '../lib/api.ts'
 import type { CurrentUser, Workspace } from '../lib/auth.ts'
+import { releaseKeys, type ReleasePermissions } from '../lib/releases.ts'
 import { ReleaseDetailPage } from './ReleaseDetailPage.tsx'
 
 const releaseMocks = vi.hoisted(() => ({
   addReleaseArtist: vi.fn(),
+  assignReleaseEditor: vi.fn(),
   createContentBlock: vi.fn(),
   createReleasePage: vi.fn(),
   deleteContentBlock: vi.fn(),
   deleteReleasePage: vi.fn(),
   getRelease: vi.fn(),
   removeReleaseArtist: vi.fn(),
+  removeReleaseEditor: vi.fn(),
+  submitRelease: vi.fn(),
   updateContentBlock: vi.fn(),
   updateReleasePage: vi.fn(),
   updateRelease: vi.fn(),
@@ -22,6 +28,10 @@ const releaseMocks = vi.hoisted(() => ({
 
 const artistMocks = vi.hoisted(() => ({
   getArtists: vi.fn(),
+}))
+
+const teamMocks = vi.hoisted(() => ({
+  getArtistMembers: vi.fn(),
 }))
 
 const mediaMocks = vi.hoisted(() => ({
@@ -48,6 +58,11 @@ vi.mock('../lib/media.ts', async (importOriginal) => {
 vi.mock('../lib/artists.ts', async (importOriginal) => {
   const original = await importOriginal<typeof import('../lib/artists.ts')>()
   return { ...original, ...artistMocks }
+})
+
+vi.mock('../lib/artistTeam.ts', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../lib/artistTeam.ts')>()
+  return { ...original, ...teamMocks }
 })
 
 const user: CurrentUser = {
@@ -82,6 +97,29 @@ const artistWorkspace: Workspace = {
   status: 'active',
 }
 
+function permissions(overrides: Partial<ReleasePermissions> = {}) {
+  return {
+    can_update: false,
+    can_submit: false,
+    can_delete: false,
+    can_approve: false,
+    can_publish: false,
+    can_manage_editors: false,
+    ...overrides,
+  }
+}
+
+const editorPermissions = permissions({ can_update: true, can_submit: true })
+
+const managerPermissions = permissions({
+  can_update: true,
+  can_submit: true,
+  can_delete: true,
+  can_approve: true,
+  can_publish: true,
+  can_manage_editors: true,
+})
+
 const release = {
   id: 'release-1',
   owner: { type: 'organization' as const, id: 'label-1' },
@@ -97,10 +135,14 @@ const release = {
   artists: [
     { artist_id: 'artist-1', name: 'Lumen', is_primary: true, position: 1 },
   ],
+  editors: [],
   editor_user_ids: [],
+  permissions: permissions(),
   created_at: '2026-08-09T10:00:00.000Z',
   updated_at: '2026-08-09T10:00:00.000Z',
 }
+
+const assignedRelease = { ...release, permissions: editorPermissions }
 
 const artistRelease = {
   ...release,
@@ -110,6 +152,7 @@ const artistRelease = {
 function renderRelease(
   contextUser: CurrentUser = user,
   contextWorkspace: Workspace = workspace,
+  client?: ReturnType<typeof createQueryClient>,
 ) {
   const router = createMemoryRouter(
     [
@@ -128,7 +171,7 @@ function renderRelease(
   )
 
   render(
-    <AppProviders>
+    <AppProviders client={client}>
       <RouterProvider router={router} />
     </AppProviders>,
   )
@@ -137,7 +180,11 @@ function renderRelease(
 beforeEach(() => {
   artistMocks.getArtists.mockReset()
   mediaMocks.uploadMedia.mockReset()
+  teamMocks.getArtistMembers.mockReset()
   releaseMocks.getRelease.mockReset()
+  releaseMocks.assignReleaseEditor.mockReset()
+  releaseMocks.removeReleaseEditor.mockReset()
+  releaseMocks.submitRelease.mockReset()
   releaseMocks.addReleaseArtist.mockReset()
   releaseMocks.createContentBlock.mockReset()
   releaseMocks.createReleasePage.mockReset()
@@ -180,6 +227,38 @@ beforeEach(() => {
     width: 800,
     height: 800,
   })
+  teamMocks.getArtistMembers.mockResolvedValue([
+    {
+      id: 'membership-1',
+      artist_id: 'artist-1',
+      user: {
+        id: 'artist-user-1',
+        email: 'artist-user@example.com',
+        display_name: 'Artist User',
+      },
+      role: 'artist_user',
+      status: 'active',
+    },
+    {
+      id: 'membership-2',
+      artist_id: 'artist-1',
+      user: {
+        id: 'suspended-user-1',
+        email: 'suspended@example.com',
+        display_name: 'Suspended User',
+      },
+      role: 'artist_user',
+      status: 'suspended',
+    },
+  ])
+  releaseMocks.assignReleaseEditor.mockResolvedValue({
+    user_id: 'artist-user-1',
+  })
+  releaseMocks.removeReleaseEditor.mockResolvedValue({ message: 'Removed' })
+  releaseMocks.submitRelease.mockResolvedValue({
+    approval_request_id: 'approval-1',
+    status: 'review',
+  })
   releaseMocks.getRelease.mockResolvedValue(release)
   releaseMocks.addReleaseArtist.mockResolvedValue({
     artist_id: 'artist-2',
@@ -219,6 +298,37 @@ beforeEach(() => {
 })
 
 describe('ReleaseDetailPage', () => {
+  it('paints the header from the list cache before the detail response lands', async () => {
+    const client = createQueryClient()
+    client.setQueryData(releaseKeys.list(), {
+      data: [release],
+      pagination: {
+        per_page: 25,
+        next_cursor: null,
+        previous_cursor: null,
+        has_more: false,
+      },
+    })
+    let landDetail: (value: unknown) => void = () => undefined
+    releaseMocks.getRelease.mockReturnValue(
+      new Promise((resolve) => {
+        landDetail = resolve
+      }),
+    )
+
+    renderRelease(user, workspace, client)
+
+    // Tittelen kommer fra sammendraget i lista, uten å vente på detaljkallet.
+    expect(screen.getByRole('heading', { name: 'Signal' })).toBeVisible()
+    // De redigerbare seksjonene har ukontrollerte felt, så de holdes tilbake
+    // til ekte data er på plass.
+    expect(screen.queryByLabelText('Tittel')).not.toBeInTheDocument()
+
+    landDetail(assignedRelease)
+
+    expect(await screen.findByLabelText('Tittel')).toBeVisible()
+  })
+
   it('keeps Label User from editing unrestricted releases', async () => {
     renderRelease()
 
@@ -230,7 +340,7 @@ describe('ReleaseDetailPage', () => {
   it('lets Label User edit assigned draft releases', async () => {
     releaseMocks.getRelease.mockResolvedValue({
       ...release,
-      editor_user_ids: ['label-user-1'],
+      permissions: editorPermissions,
     })
 
     renderRelease()
@@ -243,7 +353,7 @@ describe('ReleaseDetailPage', () => {
     const browserUser = userEvent.setup()
     releaseMocks.getRelease.mockResolvedValue({
       ...release,
-      editor_user_ids: ['label-user-1'],
+      permissions: editorPermissions,
     })
 
     renderRelease()
@@ -278,7 +388,7 @@ describe('ReleaseDetailPage', () => {
           position: 2,
         },
       ],
-      editor_user_ids: ['label-user-1'],
+      permissions: editorPermissions,
     })
 
     renderRelease()
@@ -309,7 +419,7 @@ describe('ReleaseDetailPage', () => {
     const browserUser = userEvent.setup()
     releaseMocks.getRelease.mockResolvedValue({
       ...release,
-      editor_user_ids: ['label-user-1'],
+      permissions: editorPermissions,
       pages: [{ id: 'page-1', position: 1, title: 'Story' }],
     })
 
@@ -346,7 +456,7 @@ describe('ReleaseDetailPage', () => {
     const browserUser = userEvent.setup()
     releaseMocks.getRelease.mockResolvedValue({
       ...release,
-      editor_user_ids: ['label-user-1'],
+      permissions: editorPermissions,
       pages: [
         {
           id: 'page-1',
@@ -405,7 +515,7 @@ describe('ReleaseDetailPage', () => {
     const file = new File(['image'], 'studio.png', { type: 'image/png' })
     releaseMocks.getRelease.mockResolvedValue({
       ...release,
-      editor_user_ids: ['label-user-1'],
+      permissions: editorPermissions,
       pages: [{ id: 'page-1', position: 1, title: 'Story', blocks: [] }],
     })
 
@@ -451,13 +561,194 @@ describe('ReleaseDetailPage', () => {
     expect(
       screen.queryByRole('button', { name: 'Lagre metadata' }),
     ).not.toBeInTheDocument()
+    // Utgivelsen skjules ikke: den vises skrivebeskyttet med en forklaring,
+    // så brukeren slipper å oppdage manglende tilgang ved første lagring.
+    expect(screen.getByText('Utgivelsesinformasjon')).toBeVisible()
+    expect(
+      screen.getByText(
+        'Du er ikke tildelt denne utgivelsen. Be en artist-admin om tilgang.',
+      ),
+    ).toBeVisible()
+  })
+
+  it('separates a locked status from a missing assignment', async () => {
+    releaseMocks.getRelease.mockResolvedValue({
+      ...artistRelease,
+      status: 'published',
+    })
+
+    renderRelease(artistUser, artistWorkspace)
+
+    expect(await screen.findByRole('heading', { name: 'Signal' })).toBeVisible()
+    expect(
+      screen.getByText('Utgivelsen er låst i denne statusen'),
+    ).toBeVisible()
+    expect(
+      screen.queryByText(
+        'Du er ikke tildelt denne utgivelsen. Be en artist-admin om tilgang.',
+      ),
+    ).not.toBeInTheDocument()
+  })
+
+  it('hides the assignment panel without manage-editor permission', async () => {
+    releaseMocks.getRelease.mockResolvedValue({
+      ...artistRelease,
+      permissions: editorPermissions,
+    })
+
+    renderRelease(artistUser, artistWorkspace)
+
+    await screen.findByRole('heading', { name: 'Signal' })
+    expect(screen.queryByLabelText('Tildel til')).not.toBeInTheDocument()
+    expect(teamMocks.getArtistMembers).not.toHaveBeenCalled()
+  })
+
+  it('assigns and removes editors on the release', async () => {
+    const browserUser = userEvent.setup()
+    releaseMocks.getRelease.mockResolvedValue({
+      ...artistRelease,
+      permissions: managerPermissions,
+      editors: [{ user_id: 'artist-editor-1', display_name: 'Nora Voss' }],
+    })
+
+    renderRelease(artistUser, {
+      ...artistWorkspace,
+      role: 'artist_admin',
+    })
+
+    await screen.findByRole('heading', { name: 'Signal' })
+    expect(screen.getByText('Nora Voss')).toBeVisible()
+
+    // Kandidatene er artistens aktive medlemmer, og verdien er brukerens ULID
+    // — ikke medlemskapets id.
+    await screen.findByRole('option', {
+      name: 'Artist User (artist-user@example.com)',
+    })
+    expect(
+      screen.queryByRole('option', { name: /Suspended User/ }),
+    ).not.toBeInTheDocument()
+
+    await browserUser.selectOptions(
+      screen.getByLabelText('Tildel til'),
+      'artist-user-1',
+    )
+    await browserUser.click(
+      screen.getByRole('button', { name: 'Tildel utgivelsen' }),
+    )
+    await browserUser.click(
+      screen.getByRole('button', { name: 'Fjern tildeling' }),
+    )
+
+    expect(releaseMocks.assignReleaseEditor).toHaveBeenCalledWith(
+      'release-1',
+      'artist-user-1',
+    )
+    expect(releaseMocks.removeReleaseEditor).toHaveBeenCalledWith(
+      'release-1',
+      'artist-editor-1',
+    )
+  })
+
+  it('shows the scope error from a rejected assignment', async () => {
+    const browserUser = userEvent.setup()
+    releaseMocks.getRelease.mockResolvedValue({
+      ...artistRelease,
+      permissions: managerPermissions,
+    })
+    releaseMocks.assignReleaseEditor.mockRejectedValue(
+      new ApiError(
+        422,
+        'validation_failed',
+        'The submitted data is invalid.',
+        'request-1',
+        {
+          fields: {
+            user_id: [
+              'The user must have active access to the release owner scope.',
+            ],
+          },
+        },
+      ),
+    )
+
+    renderRelease(artistUser, { ...artistWorkspace, role: 'artist_admin' })
+
+    await screen.findByRole('option', {
+      name: 'Artist User (artist-user@example.com)',
+    })
+    await browserUser.selectOptions(
+      screen.getByLabelText('Tildel til'),
+      'artist-user-1',
+    )
+    await browserUser.click(
+      screen.getByRole('button', { name: 'Tildel utgivelsen' }),
+    )
+
+    expect(
+      await screen.findByText(
+        'The user must have active access to the release owner scope.',
+      ),
+    ).toBeVisible()
+  })
+
+  it('offers only the lifecycle actions the permissions allow', async () => {
+    const browserUser = userEvent.setup()
+    releaseMocks.getRelease.mockResolvedValue({
+      ...artistRelease,
+      permissions: editorPermissions,
+    })
+
+    renderRelease(artistUser, artistWorkspace)
+
+    await screen.findByRole('heading', { name: 'Signal' })
+    expect(
+      screen.queryByRole('button', { name: 'Slett utgivelse' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Arkiver' }),
+    ).not.toBeInTheDocument()
+
+    await browserUser.click(
+      screen.getByRole('button', { name: 'Send til godkjenning' }),
+    )
+
+    expect(releaseMocks.submitRelease).toHaveBeenCalledWith('release-1')
+  })
+
+  it('explains a rejected transition with the field messages from Laravel', async () => {
+    const browserUser = userEvent.setup()
+    releaseMocks.getRelease.mockResolvedValue({
+      ...artistRelease,
+      permissions: editorPermissions,
+    })
+    releaseMocks.submitRelease.mockRejectedValue(
+      new ApiError(
+        422,
+        'validation_failed',
+        'The submitted data is invalid.',
+        'request-2',
+        { fields: { release: ['A verified cover image is required.'] } },
+      ),
+    )
+
+    renderRelease(artistUser, artistWorkspace)
+
+    await screen.findByRole('heading', { name: 'Signal' })
+    await browserUser.click(
+      screen.getByRole('button', { name: 'Send til godkjenning' }),
+    )
+
+    // `can_submit` betyr at brukeren har lov, ikke at utgivelsen er komplett.
+    expect(
+      await screen.findByText('A verified cover image is required.'),
+    ).toBeVisible()
   })
 
   it('lets Artist User edit assigned artist releases', async () => {
     const browserUser = userEvent.setup()
     releaseMocks.getRelease.mockResolvedValue({
       ...artistRelease,
-      editor_user_ids: ['artist-user-1'],
+      permissions: editorPermissions,
     })
 
     renderRelease(artistUser, artistWorkspace)

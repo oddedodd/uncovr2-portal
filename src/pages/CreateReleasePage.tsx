@@ -4,10 +4,11 @@ import { FeedbackBanner } from '../components/FeedbackBanner.tsx'
 import { FormField } from '../components/FormField.tsx'
 import { SubmitButton } from '../components/SubmitButton.tsx'
 import { fieldError, formError } from '../features/auth/validation.ts'
-import { artistKeys, getArtists } from '../lib/artists.ts'
+
 import type { PortalOutletContext } from '../lib/portal.ts'
 import { createRelease, releaseKeys } from '../lib/releases.ts'
 import { ForbiddenPage } from './states/ForbiddenPage.tsx'
+import { artistListQueryOptions } from '../lib/queryOptions.ts'
 
 function optionalString(data: FormData, key: string): string | null {
   const value = String(data.get(key) ?? '').trim()
@@ -25,10 +26,8 @@ export function CreateReleasePage() {
         ? workspace.role === 'artist_admin'
         : false
   const artists = useQuery({
-    queryKey: artistKeys.list(),
-    queryFn: () => getArtists(),
+    ...artistListQueryOptions(),
     enabled: workspace?.type === 'organization' && canCreate,
-    retry: false,
   })
   const create = useMutation({
     mutationFn: createRelease,

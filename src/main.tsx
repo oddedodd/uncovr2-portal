@@ -3,10 +3,11 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { AppProviders } from './app/AppProviders.tsx'
+import { queryClient } from './app/queryClient.ts'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AppProviders>
+    <AppProviders client={queryClient}>
       <App />
     </AppProviders>
   </StrictMode>,

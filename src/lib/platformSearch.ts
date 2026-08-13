@@ -79,6 +79,7 @@ export async function searchPlatformResource<
   resource: TResource,
   search: string,
   cursor: { after?: string; before?: string } = {},
+  signal?: AbortSignal,
 ): Promise<PlatformSearchPage<SearchResultMap[TResource]>> {
   const params = new URLSearchParams({
     'filter[search]': search,
@@ -90,6 +91,7 @@ export async function searchPlatformResource<
 
   const response = await apiRequest<SearchResultMap[TResource][]>(
     `/api/v1/${resource}?${params.toString()}`,
+    { signal },
   )
   const meta = response.meta as SearchPaginationMeta | undefined
 

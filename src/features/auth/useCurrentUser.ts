@@ -1,13 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { authKeys, getCurrentUser } from '../../lib/auth.ts'
-
-const authBootstrapStaleTimeMs = 5 * 60 * 1000
+import { currentUserQueryOptions } from '../../lib/queryOptions.ts'
 
 export function useCurrentUser() {
-  return useQuery({
-    queryKey: authKeys.currentUser,
-    queryFn: getCurrentUser,
-    retry: false,
-    staleTime: authBootstrapStaleTimeMs,
-  })
+  return useQuery(currentUserQueryOptions)
 }

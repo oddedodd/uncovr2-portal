@@ -1,13 +1,24 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   addReleaseArtist,
+  archiveRelease,
+  assignReleaseEditor,
   createContentBlock,
   createRelease,
   createReleasePage,
+  decideRelease,
   deleteContentBlock,
+  deleteRelease,
   deleteReleasePage,
   getReleases,
+  isEditableReleaseStatus,
+  publishRelease,
+  releaseStatusLabel,
   removeReleaseArtist,
+  removeReleaseEditor,
+  scheduleRelease,
+  submitRelease,
+  unpublishRelease,
   updateRelease,
   updateReleaseCover,
   updateContentBlock,
@@ -60,6 +71,90 @@ describe('release API', () => {
       ),
       expect.objectContaining({ credentials: 'include' }),
     )
+  })
+
+  it('asks Laravel for the releases assigned to the current user', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ data: [], meta: { pagination: {} } }))
+
+    await getReleases({}, { assigned_to_me: true, artist_id: 'artist-1' })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL(
+        'http://localhost:8000/api/v1/releases?page%5Bsize%5D=25&filter%5Bartist_id%5D=artist-1&filter%5Bassigned_to_me%5D=1',
+      ),
+      expect.objectContaining({ credentials: 'include' }),
+    )
+  })
+
+  it('assigns and removes release editors by user ULID', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(() => Promise.resolve(jsonResponse({ data: {} })))
+
+    await assignReleaseEditor('release-1', 'user-1')
+    await removeReleaseEditor('release-1', 'user-1')
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL('http://localhost:8000/api/v1/releases/release-1/editors'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ user_id: 'user-1' }),
+      }),
+    )
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL('http://localhost:8000/api/v1/releases/release-1/editors/user-1'),
+      expect.objectContaining({ method: 'DELETE' }),
+    )
+  })
+
+  it('drives the release lifecycle through Laravel', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(() => Promise.resolve(jsonResponse({ data: {} })))
+
+    await submitRelease('release-1')
+    await decideRelease('release-1', true)
+    await decideRelease('release-1', false)
+    await scheduleRelease('release-1', '2026-09-01T10:00:00.000Z')
+    await publishRelease('release-1')
+    await unpublishRelease('release-1')
+    await archiveRelease('release-1')
+    await deleteRelease('release-1')
+
+    const requested = fetchMock.mock.calls.map(([url, init]) => [
+      String(url).replace(
+        'http://localhost:8000/api/v1/releases/release-1',
+        '',
+      ),
+      (init as RequestInit).method,
+    ])
+    expect(requested).toEqual([
+      ['/submit', 'POST'],
+      ['/approve', 'POST'],
+      ['/reject', 'POST'],
+      ['/schedule', 'POST'],
+      ['/publish', 'POST'],
+      ['/unpublish', 'POST'],
+      ['/archive', 'POST'],
+      ['', 'DELETE'],
+    ])
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL('http://localhost:8000/api/v1/releases/release-1/schedule'),
+      expect.objectContaining({
+        body: JSON.stringify({ publish_at: '2026-09-01T10:00:00.000Z' }),
+      }),
+    )
+  })
+
+  it('names the statuses Laravel allows editing in', () => {
+    expect(isEditableReleaseStatus('draft')).toBe(true)
+    expect(isEditableReleaseStatus('unpublished')).toBe(true)
+    expect(isEditableReleaseStatus('review')).toBe(false)
+    expect(releaseStatusLabel('published')).toBe('Publisert')
+    // Ukjente statuser vises som de er i stedet for å bli borte.
+    expect(releaseStatusLabel('mystery')).toBe('mystery')
   })
 
   it('attaches an album cover by media ID', async () => {

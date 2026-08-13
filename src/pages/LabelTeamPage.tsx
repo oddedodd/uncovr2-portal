@@ -5,14 +5,12 @@ import { FeedbackBanner } from '../components/FeedbackBanner.tsx'
 import { fieldError, formError } from '../features/auth/validation.ts'
 import {
   artistTeamKeys,
-  getArtistMembers,
   inviteArtistMember,
   removeArtistMember,
   updateArtistMember,
   type ArtistMember,
 } from '../lib/artistTeam.ts'
 import {
-  getOrganizationMembers,
   inviteOrganizationMember,
   organizationTeamKeys,
   removeOrganizationMember,
@@ -22,6 +20,10 @@ import {
 import type { PortalOutletContext } from '../lib/portal.ts'
 import { WorkspaceSectionPage } from './WorkspaceSectionPage.tsx'
 import { ForbiddenPage } from './states/ForbiddenPage.tsx'
+import {
+  artistMembersQueryOptions,
+  organizationMembersQueryOptions,
+} from '../lib/queryOptions.ts'
 
 function LabelTeamManager({
   workspaceId,
@@ -34,11 +36,7 @@ function LabelTeamManager({
   const [removing, setRemoving] = useState<OrganizationMember | null>(null)
   const [savedInvitation, setSavedInvitation] = useState<string | null>(null)
   const teamKey = organizationTeamKeys.all(workspaceId)
-  const members = useQuery({
-    queryKey: teamKey,
-    queryFn: () => getOrganizationMembers(workspaceId),
-    retry: false,
-  })
+  const members = useQuery(organizationMembersQueryOptions(workspaceId))
   const refresh = () => queryClient.invalidateQueries({ queryKey: teamKey })
   const invitation = useMutation({
     mutationFn: (input: { email: string; role: OrganizationMember['role'] }) =>
@@ -255,11 +253,7 @@ function ArtistTeamManager({
   const [removing, setRemoving] = useState<ArtistMember | null>(null)
   const [savedInvitation, setSavedInvitation] = useState<string | null>(null)
   const teamKey = artistTeamKeys.all(workspaceId)
-  const members = useQuery({
-    queryKey: teamKey,
-    queryFn: () => getArtistMembers(workspaceId),
-    retry: false,
-  })
+  const members = useQuery(artistMembersQueryOptions(workspaceId))
   const refresh = () => queryClient.invalidateQueries({ queryKey: teamKey })
   const invitation = useMutation({
     mutationFn: (input: { email: string; role: ArtistMember['role'] }) =>

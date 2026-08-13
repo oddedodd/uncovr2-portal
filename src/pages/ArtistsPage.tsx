@@ -5,9 +5,10 @@ import { FeedbackBanner } from '../components/FeedbackBanner.tsx'
 import { MediaThumbnail } from '../components/MediaThumbnail.tsx'
 import { formError } from '../features/auth/validation.ts'
 import { useMediaUrls } from '../features/media/useMediaUrl.ts'
-import { artistKeys, getArtists, type Artist } from '../lib/artists.ts'
+import { type Artist } from '../lib/artists.ts'
 import type { PortalOutletContext } from '../lib/portal.ts'
 import { WorkspaceSectionPage } from './WorkspaceSectionPage.tsx'
+import { artistListQueryOptions } from '../lib/queryOptions.ts'
 
 type CursorState = { after?: string; before?: string }
 
@@ -37,11 +38,7 @@ function ArtistRow({
 export function ArtistsPage() {
   const { workspace } = useOutletContext<PortalOutletContext>()
   const [cursor, setCursor] = useState<CursorState>({})
-  const artists = useQuery({
-    queryKey: artistKeys.list(cursor.after, cursor.before),
-    queryFn: () => getArtists(cursor),
-    retry: false,
-  })
+  const artists = useQuery(artistListQueryOptions(cursor))
   const images = useMediaUrls(
     artists.data?.data.map(
       (artist) => (artist.profile.logo_media ?? artist.profile.image_media)?.id,

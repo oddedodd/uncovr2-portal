@@ -6,7 +6,7 @@ import { SubmitButton } from '../components/SubmitButton.tsx'
 import { fieldError, formError } from '../features/auth/validation.ts'
 import {
   artistKeys,
-  getArtist,
+  findCachedArtist,
   updateArtist,
   uploadArtistImage,
   uploadArtistLogo,
@@ -14,6 +14,7 @@ import {
 } from '../lib/artists.ts'
 import type { Workspace } from '../lib/auth.ts'
 import type { PortalOutletContext } from '../lib/portal.ts'
+import { artistDetailQueryOptions } from '../lib/queryOptions.ts'
 
 function ArtistProfile({
   artist,
@@ -176,13 +177,15 @@ export function ArtistDetailPage({
   artistId?: string
 }) {
   const params = useParams()
+  const queryClient = useQueryClient()
   const artistId = providedId ?? params.artistId ?? ''
   const { workspace } = useOutletContext<PortalOutletContext>()
   const artist = useQuery({
-    queryKey: artistKeys.detail(artistId),
-    queryFn: () => getArtist(artistId),
+    ...artistDetailQueryOptions(artistId),
     enabled: Boolean(artistId),
-    retry: false,
+    // Listeraden har samme form som detaljen, så navnet i toppen kan males
+    // med én gang. Profilskjemaet er ukontrollert og venter på ekte data.
+    placeholderData: () => findCachedArtist(queryClient, artistId),
   })
 
   if (!workspace) return null
@@ -204,7 +207,11 @@ export function ArtistDetailPage({
           Administrer artistens profil og visuelle identitet.
         </p>
       </div>
-      <ArtistProfile artist={artist.data} workspace={workspace} />
+      {artist.isPlaceholderData ? (
+        <p aria-live="polite">Henter artistprofil …</p>
+      ) : (
+        <ArtistProfile artist={artist.data} workspace={workspace} />
+      )}
       {providedId ? null : (
         <Link className="resource-back-link" to="/artists">
           Tilbake til alle artister

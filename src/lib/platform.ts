@@ -25,14 +25,16 @@ export const platformKeys = {
   health: (check: 'live' | 'ready') => ['platform', 'health', check] as const,
 }
 
-export async function getPlatformOverview(): Promise<PlatformOverview> {
-  return apiRequest<PlatformOverview>('/api/v1/platform/overview').then(
-    (response) => response.data,
-  )
+export async function getPlatformOverview(
+  signal?: AbortSignal,
+): Promise<PlatformOverview> {
+  return apiRequest<PlatformOverview>('/api/v1/platform/overview', {
+    signal,
+  }).then((response) => response.data)
 }
 
-export function getHealthCheck(check: 'live' | 'ready') {
-  return apiRequest<{ status: 'ok' | 'ready' }>(`/api/v1/health/${check}`).then(
-    (response) => response.data,
-  )
+export function getHealthCheck(check: 'live' | 'ready', signal?: AbortSignal) {
+  return apiRequest<{ status: 'ok' | 'ready' }>(`/api/v1/health/${check}`, {
+    signal,
+  }).then((response) => response.data)
 }

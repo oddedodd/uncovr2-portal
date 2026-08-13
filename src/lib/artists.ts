@@ -1,3 +1,4 @@
+import { type QueryClient } from '@tanstack/react-query'
 import { apiRequest } from './api.ts'
 import type { CursorPagination } from './platformSearch.ts'
 import type { MediaReference } from './media.ts'
@@ -70,10 +71,29 @@ export const artistKeys = {
   detail: (artistId: string) => ['artists', 'detail', artistId] as const,
 }
 
-export function getArtist(artistId: string) {
-  return apiRequest<Artist>(`/api/v1/artists/${artistId}`).then(
+export function getArtist(artistId: string, signal?: AbortSignal) {
+  return apiRequest<Artist>(`/api/v1/artists/${artistId}`, { signal }).then(
     (response) => response.data,
   )
+}
+
+/**
+ * Listen returnerer samme form som detaljen, så raden kan male toppen av
+ * artistsiden med én gang. Redigerbare felt venter likevel på ekte data, siden
+ * ukontrollerte skjemafelt ikke oppdaterer defaultValue i etterkant.
+ */
+export function findCachedArtist(
+  client: QueryClient,
+  artistId: string,
+): Artist | undefined {
+  for (const [, page] of client.getQueriesData<ArtistPage>({
+    queryKey: artistKeys.lists(),
+  })) {
+    const artist = page?.data.find((candidate) => candidate.id === artistId)
+    if (artist) return artist
+  }
+
+  return undefined
 }
 
 export function updateArtist(
@@ -113,6 +133,7 @@ export function uploadArtistImage(artistId: string, file: File) {
 
 export async function getArtists(
   cursor: { after?: string; before?: string } = {},
+  signal?: AbortSignal,
 ): Promise<ArtistPage> {
   const params = new URLSearchParams({ 'page[size]': '25' })
   if (cursor.after) params.set('page[after]', cursor.after)
@@ -120,6 +141,7 @@ export async function getArtists(
 
   const response = await apiRequest<Artist[]>(
     `/api/v1/artists?${params.toString()}`,
+    { signal },
   )
   const meta = response.meta as ArtistPaginationMeta | undefined
 

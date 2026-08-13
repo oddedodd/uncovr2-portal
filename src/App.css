@@ -1196,6 +1196,23 @@
   grid-column: 1 / -1;
 }
 
+.release-editor-form,
+.release-schedule-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(9rem, 14rem);
+  gap: 1rem;
+  align-items: end;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.release-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
 .page-list {
   display: grid;
   gap: 0.75rem;
@@ -1972,8 +1989,14 @@
     flex-direction: column;
   }
 
-  .release-artist-form {
+  .release-artist-form,
+  .release-editor-form,
+  .release-schedule-form {
     grid-template-columns: 1fr;
+  }
+
+  .release-actions .button {
+    width: 100%;
   }
 
   .page-row-form,

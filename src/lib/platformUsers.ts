@@ -77,10 +77,10 @@ export interface MembershipCorrectionResult {
   status: 'active' | 'suspended'
 }
 
-export function getPlatformUser(userId: string) {
-  return apiRequest<PlatformUserDetail>(`/api/v1/users/${userId}`).then(
-    (response) => response.data,
-  )
+export function getPlatformUser(userId: string, signal?: AbortSignal) {
+  return apiRequest<PlatformUserDetail>(`/api/v1/users/${userId}`, {
+    signal,
+  }).then((response) => response.data)
 }
 
 export function updatePlatformUserStatus(

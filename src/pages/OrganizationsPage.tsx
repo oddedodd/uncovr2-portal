@@ -2,11 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { FeedbackBanner } from '../components/FeedbackBanner.tsx'
-import {
-  getOrganizations,
-  organizationKeys,
-  type Organization,
-} from '../lib/organizations.ts'
+import { type Organization } from '../lib/organizations.ts'
+import { organizationListQueryOptions } from '../lib/queryOptions.ts'
 
 type CursorState = { after?: string; before?: string }
 
@@ -28,11 +25,7 @@ function OrganizationRow({ organization }: { organization: Organization }) {
 
 export function OrganizationsPage() {
   const [cursor, setCursor] = useState<CursorState>({})
-  const organizations = useQuery({
-    queryKey: organizationKeys.list(cursor.after, cursor.before),
-    queryFn: () => getOrganizations(cursor),
-    retry: false,
-  })
+  const organizations = useQuery(organizationListQueryOptions(cursor))
 
   return (
     <>

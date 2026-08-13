@@ -41,7 +41,8 @@ export const mediaKeys = {
  * så batchen sparer flere rundturer enn forespørselskroppen antyder.
  */
 const batchWindowMs = 12
-const maximumBatchSize = 50
+// Laravel tar imot 100 id-er per kall. Grensen her må ikke settes høyere.
+const maximumBatchSize = 100
 
 interface DownloadWaiter {
   resolve: (value: MediaDownload | null) => void

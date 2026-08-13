@@ -2,16 +2,13 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { FeedbackBanner } from '../components/FeedbackBanner.tsx'
 import {
-  getHealthCheck,
-  getPlatformOverview,
-  platformKeys,
-} from '../lib/platform.ts'
+  healthCheckQueryOptions,
+  platformOverviewQueryOptions,
+} from '../lib/queryOptions.ts'
 
 function HealthCard({ check }: { check: 'live' | 'ready' }) {
   const query = useQuery({
-    queryKey: platformKeys.health(check),
-    queryFn: () => getHealthCheck(check),
-    retry: false,
+    ...healthCheckQueryOptions(check),
     refetchInterval: 60_000,
   })
   const ready = query.data?.status === (check === 'live' ? 'ok' : 'ready')
@@ -39,10 +36,7 @@ function HealthCard({ check }: { check: 'live' | 'ready' }) {
 }
 
 export function PlatformOverviewPage() {
-  const overview = useQuery({
-    queryKey: platformKeys.overview,
-    queryFn: getPlatformOverview,
-  })
+  const overview = useQuery(platformOverviewQueryOptions)
   const summary = overview.data
 
   return (

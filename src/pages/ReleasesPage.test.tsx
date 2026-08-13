@@ -38,6 +38,15 @@ const workspace: Workspace = {
   status: 'active',
 }
 
+const permissions = {
+  can_update: true,
+  can_submit: true,
+  can_delete: true,
+  can_approve: true,
+  can_publish: true,
+  can_manage_editors: true,
+}
+
 const baseRelease: ReleaseSummary = {
   id: 'release-1',
   owner: { type: 'organization', id: 'label-1' },
@@ -51,7 +60,9 @@ const baseRelease: ReleaseSummary = {
   artists: [
     { artist_id: 'artist-1', name: 'Lumen', is_primary: true, position: 1 },
   ],
+  editors: [],
   editor_user_ids: [],
+  permissions,
   created_at: '2026-08-09T10:00:00.000Z',
   updated_at: '2026-08-09T10:00:00.000Z',
 }
@@ -65,6 +76,7 @@ const releasePage: ReleasePage = {
       owner: { type: 'artist', id: 'artist-1' },
       status: 'published',
       title: 'Aurora',
+      editors: [{ user_id: 'user-1', display_name: 'Label User' }],
       editor_user_ids: ['user-1'],
     },
   ],
@@ -107,7 +119,7 @@ beforeEach(() => {
 })
 
 describe('ReleasesPage', () => {
-  it('filters the visible release list by ownership and assignment', async () => {
+  it('filters the visible release list by ownership', async () => {
     const browserUser = userEvent.setup()
     renderReleases()
 
@@ -117,14 +129,69 @@ describe('ReleasesPage', () => {
     await browserUser.selectOptions(screen.getByLabelText('Eierskap'), 'artist')
     expect(screen.queryByText('Signal')).not.toBeInTheDocument()
     expect(screen.getByText('Aurora')).toBeVisible()
+  })
 
+  it('asks Laravel for assigned releases instead of filtering the page', async () => {
+    const browserUser = userEvent.setup()
+    renderReleases()
+
+    await screen.findByText('Signal')
     await browserUser.selectOptions(
       screen.getByLabelText('Tildeling'),
-      'not-assigned-to-me',
+      'assigned-to-me',
     )
-    expect(
-      screen.getByText('Ingen utgivelser matcher filtrene på denne siden.'),
-    ).toBeVisible()
+
+    // Listen er markørpaginert, så tildelingen må filtreres av API-et. Et
+    // klientside-filter kunne gitt en helt tom side.
+    await waitFor(() =>
+      expect(releaseMocks.getReleases).toHaveBeenLastCalledWith(
+        {},
+        {
+          assigned_to_me: true,
+          owner_id: 'label-1',
+          owner_type: 'organization',
+        },
+        expect.any(AbortSignal),
+      ),
+    )
+  })
+
+  it('defaults Artist User workspaces to their assigned releases', async () => {
+    renderReleases(user, {
+      id: 'artist-1',
+      type: 'artist',
+      name: 'Lumen',
+      role: 'artist_user',
+      status: 'active',
+    })
+
+    await screen.findByText('Signal')
+
+    expect(releaseMocks.getReleases).toHaveBeenLastCalledWith(
+      {},
+      { assigned_to_me: true, artist_id: 'artist-1' },
+      expect.any(AbortSignal),
+    )
+    expect(screen.getByLabelText('Tildeling')).toHaveValue('assigned-to-me')
+  })
+
+  it('keeps Artist Admin workspaces on every release they may see', async () => {
+    renderReleases(user, {
+      id: 'artist-1',
+      type: 'artist',
+      name: 'Lumen',
+      role: 'artist_admin',
+      status: 'active',
+    })
+
+    await screen.findByText('Signal')
+
+    // En artist_admin som aldri tildelte seg selv ville fått en tom liste.
+    expect(releaseMocks.getReleases).toHaveBeenLastCalledWith(
+      {},
+      { artist_id: 'artist-1' },
+      expect.any(AbortSignal),
+    )
   })
 
   it('requests status filters through the releases API', async () => {
@@ -145,6 +212,9 @@ describe('ReleasesPage', () => {
           owner_type: 'organization',
           status: 'published',
         },
+        // React Query gir queryFn et AbortSignal, som sendes videre til fetch
+        // så en forlatt navigering ikke lar forespørselen leve videre.
+        expect.any(AbortSignal),
       ),
     )
   })
@@ -157,6 +227,7 @@ describe('ReleasesPage', () => {
     expect(releaseMocks.getReleases).toHaveBeenLastCalledWith(
       {},
       { owner_id: 'label-1', owner_type: 'organization' },
+      expect.any(AbortSignal),
     )
   })
 
@@ -181,7 +252,8 @@ describe('ReleasesPage', () => {
     ).not.toBeInTheDocument()
     expect(releaseMocks.getReleases).toHaveBeenLastCalledWith(
       {},
-      { artist_id: 'artist-1' },
+      { assigned_to_me: true, artist_id: 'artist-1' },
+      expect.any(AbortSignal),
     )
   })
 

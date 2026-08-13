@@ -167,10 +167,14 @@ function PlatformSearchContent({ urlQuery }: { urlQuery: string }) {
         cursors[resource]?.after,
         cursors[resource]?.before,
       ),
-      queryFn: () =>
-        searchPlatformResource(resource, normalizedQuery, cursors[resource]),
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        searchPlatformResource(
+          resource,
+          normalizedQuery,
+          cursors[resource],
+          signal,
+        ),
       enabled: canSearch,
-      retry: false,
     })),
   })
 

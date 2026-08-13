@@ -7,21 +7,17 @@ import { SubmitButton } from '../components/SubmitButton.tsx'
 import { fieldError, formError } from '../features/auth/validation.ts'
 import { organizationInput } from '../lib/organizationForm.ts'
 import {
-  getOrganization,
   organizationKeys,
   updateOrganization,
   uploadOrganizationLogo,
 } from '../lib/organizations.ts'
 import type { Workspace } from '../lib/auth.ts'
 import { roleLabel } from '../lib/portal.ts'
+import { organizationDetailQueryOptions } from '../lib/queryOptions.ts'
 
 export function LabelDashboardPage({ workspace }: { workspace: Workspace }) {
   const queryClient = useQueryClient()
-  const organization = useQuery({
-    queryKey: organizationKeys.detail(workspace.id),
-    queryFn: () => getOrganization(workspace.id),
-    retry: false,
-  })
+  const organization = useQuery(organizationDetailQueryOptions(workspace.id))
   const update = useMutation({
     mutationFn: (input: Parameters<typeof updateOrganization>[1]) =>
       updateOrganization(workspace.id, input),

@@ -72,6 +72,7 @@ describe('PlatformSearchPage', () => {
       'users',
       'ada',
       undefined,
+      expect.any(AbortSignal),
     )
     expect(screen.getByText('ada@example.com')).toBeVisible()
     expect(screen.getAllByText('Ingen treff.')).toHaveLength(3)

@@ -3,32 +3,35 @@ import { AuthLayout } from '../components/AuthLayout.tsx'
 import { PortalLayout } from '../components/PortalLayout.tsx'
 import { RequireAuth } from '../components/RequireAuth.tsx'
 import { RequireSuperadmin } from '../components/RequireSuperadmin.tsx'
-import { AccountPage } from '../pages/AccountPage.tsx'
-import { AcceptArtistInvitationPage } from '../pages/AcceptArtistInvitationPage.tsx'
-import { AcceptOrganizationInvitationPage } from '../pages/AcceptOrganizationInvitationPage.tsx'
-import { ArtistsPage } from '../pages/ArtistsPage.tsx'
-import { ArtistDetailPage } from '../pages/ArtistDetailPage.tsx'
-import { CreateArtistPage } from '../pages/CreateArtistPage.tsx'
-import { CreateOrganizationPage } from '../pages/CreateOrganizationPage.tsx'
-import { CreateReleasePage } from '../pages/CreateReleasePage.tsx'
-import { DashboardPage } from '../pages/DashboardPage.tsx'
+
 import { NotFoundPage } from '../pages/NotFoundPage.tsx'
-import { OrganizationDetailPage } from '../pages/OrganizationDetailPage.tsx'
-import { OrganizationsPage } from '../pages/OrganizationsPage.tsx'
-import { PlatformSearchPage } from '../pages/PlatformSearchPage.tsx'
-import { PlatformUserPage } from '../pages/PlatformUserPage.tsx'
-import { LabelTeamPage } from '../pages/LabelTeamPage.tsx'
-import { InvitationEntryPage } from '../pages/InvitationEntryPage.tsx'
-import { ReleasesPage } from '../pages/ReleasesPage.tsx'
-import { ReleaseDetailPage } from '../pages/ReleaseDetailPage.tsx'
-import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage.tsx'
 import { LoginPage } from '../pages/auth/LoginPage.tsx'
-import { RegisterPage } from '../pages/auth/RegisterPage.tsx'
-import { ResetPasswordPage } from '../pages/auth/ResetPasswordPage.tsx'
-import { SessionExpiredPage } from '../pages/auth/SessionExpiredPage.tsx'
-import { VerifyEmailPage } from '../pages/auth/VerifyEmailPage.tsx'
 import { ForbiddenPage } from '../pages/states/ForbiddenPage.tsx'
 import { RouteErrorPage } from '../pages/states/RouteErrorPage.tsx'
+import { queryClient } from './queryClient.ts'
+import {
+  artistDetailQueryOptions,
+  artistListQueryOptions,
+  currentUserQueryOptions,
+  organizationDetailQueryOptions,
+  organizationListQueryOptions,
+  platformUserDetailQueryOptions,
+  releaseDetailQueryOptions,
+  sessionsQueryOptions,
+  workspacesQueryOptions,
+} from '../lib/queryOptions.ts'
+
+/**
+ * Loaderne under starter hentingen ved navigering, før komponentene monterer.
+ * Det er poenget: `RequireAuth` viser en lasteskjerm i stedet for `<Outlet/>`
+ * mens `/me` er underveis, så en query som først startes i sidekomponenten kan
+ * ikke begynne før innloggingssjekken er ferdig. Med loaderne går de i
+ * parallell i stedet for etter hverandre.
+ *
+ * De må derfor være synkrone. `prefetchQuery` returnerer et løfte vi bevisst
+ * ikke venter på — feil havner i cachen og håndteres av `useQuery` i
+ * komponenten, akkurat som før.
+ */
 
 export const router = createBrowserRouter([
   {
@@ -36,86 +39,286 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorPage />,
     children: [
       { path: '/login', element: <LoginPage /> },
-      { path: '/register', element: <RegisterPage /> },
-      { path: '/verify-email', element: <VerifyEmailPage /> },
-      { path: '/forgot-password', element: <ForgotPasswordPage /> },
-      { path: '/reset-password', element: <ResetPasswordPage /> },
-      { path: '/session-expired', element: <SessionExpiredPage /> },
+      {
+        path: '/register',
+        lazy: async () => ({
+          Component: (await import('../pages/auth/RegisterPage.tsx'))
+            .RegisterPage,
+        }),
+      },
+      {
+        path: '/verify-email',
+        lazy: async () => ({
+          Component: (await import('../pages/auth/VerifyEmailPage.tsx'))
+            .VerifyEmailPage,
+        }),
+      },
+      {
+        path: '/forgot-password',
+        lazy: async () => ({
+          Component: (await import('../pages/auth/ForgotPasswordPage.tsx'))
+            .ForgotPasswordPage,
+        }),
+      },
+      {
+        path: '/reset-password',
+        lazy: async () => ({
+          Component: (await import('../pages/auth/ResetPasswordPage.tsx'))
+            .ResetPasswordPage,
+        }),
+      },
+      {
+        path: '/session-expired',
+        lazy: async () => ({
+          Component: (await import('../pages/auth/SessionExpiredPage.tsx'))
+            .SessionExpiredPage,
+        }),
+      },
       {
         path: '/invitations/accept',
-        element: (
-          <InvitationEntryPage kind="label">
-            <AcceptOrganizationInvitationPage />
-          </InvitationEntryPage>
-        ),
+        lazy: async () => {
+          const [
+            { InvitationEntryPage },
+            { AcceptOrganizationInvitationPage },
+          ] = await Promise.all([
+            import('../pages/InvitationEntryPage.tsx'),
+            import('../pages/AcceptOrganizationInvitationPage.tsx'),
+          ])
+
+          return {
+            Component: () => (
+              <InvitationEntryPage kind="label">
+                <AcceptOrganizationInvitationPage />
+              </InvitationEntryPage>
+            ),
+          }
+        },
       },
       {
         path: '/artist-invitations/accept',
-        element: (
-          <InvitationEntryPage kind="artist">
-            <AcceptArtistInvitationPage />
-          </InvitationEntryPage>
-        ),
+        lazy: async () => {
+          const [{ InvitationEntryPage }, { AcceptArtistInvitationPage }] =
+            await Promise.all([
+              import('../pages/InvitationEntryPage.tsx'),
+              import('../pages/AcceptArtistInvitationPage.tsx'),
+            ])
+
+          return {
+            Component: () => (
+              <InvitationEntryPage kind="artist">
+                <AcceptArtistInvitationPage />
+              </InvitationEntryPage>
+            ),
+          }
+        },
       },
     ],
   },
   {
     element: <RequireAuth />,
     errorElement: <RouteErrorPage />,
+    loader: () => {
+      void queryClient.prefetchQuery(currentUserQueryOptions)
+      void queryClient.prefetchQuery(workspacesQueryOptions)
+      return null
+    },
     children: [
       {
         path: '/',
         element: <PortalLayout />,
         children: [
-          { index: true, element: <DashboardPage /> },
           {
+            index: true,
+            lazy: async () => ({
+              Component: (await import('../pages/DashboardPage.tsx'))
+                .DashboardPage,
+            }),
+          },
+          {
+            // Søket avhenger av et debouncet tekstfelt, så det finnes ingen
+            // nyttig henting å starte ved navigering.
             path: 'search',
-            element: (
-              <RequireSuperadmin>
-                <PlatformSearchPage />
-              </RequireSuperadmin>
-            ),
+            lazy: async () => {
+              const { PlatformSearchPage } = await import(
+                '../pages/PlatformSearchPage.tsx'
+              )
+
+              return {
+                Component: () => (
+                  <RequireSuperadmin>
+                    <PlatformSearchPage />
+                  </RequireSuperadmin>
+                ),
+              }
+            },
           },
           {
             path: 'users/:userId',
-            element: (
-              <RequireSuperadmin>
-                <PlatformUserPage />
-              </RequireSuperadmin>
-            ),
+            loader: ({ params }) => {
+              if (params.userId) {
+                void queryClient.prefetchQuery(
+                  platformUserDetailQueryOptions(params.userId),
+                )
+              }
+              return null
+            },
+            lazy: async () => {
+              const { PlatformUserPage } = await import(
+                '../pages/PlatformUserPage.tsx'
+              )
+
+              return {
+                Component: () => (
+                  <RequireSuperadmin>
+                    <PlatformUserPage />
+                  </RequireSuperadmin>
+                ),
+              }
+            },
           },
-          { path: 'account', element: <AccountPage /> },
+          {
+            path: 'account',
+            loader: () => {
+              void queryClient.prefetchQuery(sessionsQueryOptions)
+              return null
+            },
+            lazy: async () => ({
+              Component: (await import('../pages/AccountPage.tsx')).AccountPage,
+            }),
+          },
           {
             path: 'labels',
-            element: (
-              <RequireSuperadmin>
-                <OrganizationsPage />
-              </RequireSuperadmin>
-            ),
+            loader: () => {
+              void queryClient.prefetchQuery(organizationListQueryOptions())
+              return null
+            },
+            lazy: async () => {
+              const { OrganizationsPage } = await import(
+                '../pages/OrganizationsPage.tsx'
+              )
+
+              return {
+                Component: () => (
+                  <RequireSuperadmin>
+                    <OrganizationsPage />
+                  </RequireSuperadmin>
+                ),
+              }
+            },
           },
           {
             path: 'labels/new',
-            element: (
-              <RequireSuperadmin>
-                <CreateOrganizationPage />
-              </RequireSuperadmin>
-            ),
+            lazy: async () => {
+              const { CreateOrganizationPage } = await import(
+                '../pages/CreateOrganizationPage.tsx'
+              )
+
+              return {
+                Component: () => (
+                  <RequireSuperadmin>
+                    <CreateOrganizationPage />
+                  </RequireSuperadmin>
+                ),
+              }
+            },
           },
           {
             path: 'labels/:organizationId',
-            element: (
-              <RequireSuperadmin>
-                <OrganizationDetailPage />
-              </RequireSuperadmin>
-            ),
+            loader: ({ params }) => {
+              if (params.organizationId) {
+                void queryClient.prefetchQuery(
+                  organizationDetailQueryOptions(params.organizationId),
+                )
+              }
+              return null
+            },
+            lazy: async () => {
+              const { OrganizationDetailPage } = await import(
+                '../pages/OrganizationDetailPage.tsx'
+              )
+
+              return {
+                Component: () => (
+                  <RequireSuperadmin>
+                    <OrganizationDetailPage />
+                  </RequireSuperadmin>
+                ),
+              }
+            },
           },
-          { path: 'artists', element: <ArtistsPage /> },
-          { path: 'artists/:artistId', element: <ArtistDetailPage /> },
-          { path: 'artists/new', element: <CreateArtistPage /> },
-          { path: 'releases', element: <ReleasesPage /> },
-          { path: 'releases/new', element: <CreateReleasePage /> },
-          { path: 'releases/:releaseId', element: <ReleaseDetailPage /> },
-          { path: 'team', element: <LabelTeamPage /> },
+          {
+            path: 'artists',
+            loader: () => {
+              void queryClient.prefetchQuery(artistListQueryOptions())
+              return null
+            },
+            lazy: async () => ({
+              Component: (await import('../pages/ArtistsPage.tsx')).ArtistsPage,
+            }),
+          },
+          {
+            path: 'artists/:artistId',
+            loader: ({ params }) => {
+              if (params.artistId) {
+                void queryClient.prefetchQuery(
+                  artistDetailQueryOptions(params.artistId),
+                )
+              }
+              return null
+            },
+            lazy: async () => ({
+              Component: (await import('../pages/ArtistDetailPage.tsx'))
+                .ArtistDetailPage,
+            }),
+          },
+          {
+            path: 'artists/new',
+            lazy: async () => ({
+              Component: (await import('../pages/CreateArtistPage.tsx'))
+                .CreateArtistPage,
+            }),
+          },
+          {
+            // Listen filtreres på det aktive arbeidsområdet, som først er
+            // kjent når `/me/workspaces` har svart. En loader her ville hentet
+            // feil filter.
+            path: 'releases',
+            lazy: async () => ({
+              Component: (await import('../pages/ReleasesPage.tsx'))
+                .ReleasesPage,
+            }),
+          },
+          {
+            path: 'releases/new',
+            lazy: async () => ({
+              Component: (await import('../pages/CreateReleasePage.tsx'))
+                .CreateReleasePage,
+            }),
+          },
+          {
+            path: 'releases/:releaseId',
+            loader: ({ params }) => {
+              if (params.releaseId) {
+                void queryClient.prefetchQuery(
+                  releaseDetailQueryOptions(params.releaseId),
+                )
+              }
+              return null
+            },
+            lazy: async () => ({
+              Component: (await import('../pages/ReleaseDetailPage.tsx'))
+                .ReleaseDetailPage,
+            }),
+          },
+          {
+            // Teamsiden velger label- eller artistvariant ut fra
+            // arbeidsområdet, så hentingen kan ikke starte tidligere.
+            path: 'team',
+            lazy: async () => ({
+              Component: (await import('../pages/LabelTeamPage.tsx'))
+                .LabelTeamPage,
+            }),
+          },
           { path: 'forbidden', element: <ForbiddenPage /> },
         ],
       },

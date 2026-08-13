@@ -10,7 +10,6 @@ import {
 import { formError } from '../features/auth/validation.ts'
 import {
   correctMembershipRole,
-  getPlatformUser,
   platformUserKeys,
   updatePlatformUserStatus,
   type ArtistMembership,
@@ -19,6 +18,7 @@ import {
   type OrganizationMembership,
 } from '../lib/platformUsers.ts'
 import { roleLabel, type PortalOutletContext } from '../lib/portal.ts'
+import { platformUserDetailQueryOptions } from '../lib/queryOptions.ts'
 
 function ResourceStatus({ status }: { status: string }) {
   return (
@@ -188,10 +188,8 @@ export function PlatformUserPage() {
     useState<CorrectionTarget | null>(null)
   const [changingAccountStatus, setChangingAccountStatus] = useState(false)
   const user = useQuery({
-    queryKey: platformUserKeys.detail(userId),
-    queryFn: () => getPlatformUser(userId),
+    ...platformUserDetailQueryOptions(userId),
     enabled: Boolean(userId),
-    retry: false,
   })
   const roleCorrection = useMutation({
     mutationFn: (input: {

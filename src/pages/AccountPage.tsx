@@ -6,7 +6,6 @@ import { SubmitButton } from '../components/SubmitButton.tsx'
 import { fieldError, formError } from '../features/auth/validation.ts'
 import {
   authKeys,
-  getSessions,
   logout,
   logoutAll,
   revokeSession,
@@ -14,6 +13,7 @@ import {
   type DeviceSession,
 } from '../lib/auth.ts'
 import { roleLabel, type PortalOutletContext } from '../lib/portal.ts'
+import { sessionsQueryOptions } from '../lib/queryOptions.ts'
 
 export function AccountPage() {
   const {
@@ -25,11 +25,7 @@ export function AccountPage() {
   } = useOutletContext<PortalOutletContext>()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const sessions = useQuery({
-    queryKey: authKeys.sessions,
-    queryFn: getSessions,
-    retry: false,
-  })
+  const sessions = useQuery(sessionsQueryOptions)
   const profile = useMutation({
     mutationFn: updateCurrentUser,
     onSuccess: (updatedUser) => {

@@ -12,8 +12,9 @@ import { FormField } from '../../components/FormField.tsx'
 import { SubmitButton } from '../../components/SubmitButton.tsx'
 import { fieldError, formError } from '../../features/auth/validation.ts'
 import { ApiError } from '../../lib/api.ts'
-import { authKeys, getCurrentWorkspaces, login } from '../../lib/auth.ts'
+import { authKeys, login } from '../../lib/auth.ts'
 import { authRoute, readInvitationReturnTo } from '../../lib/authNavigation.ts'
+import { workspacesQueryOptions } from '../../lib/queryOptions.ts'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -29,10 +30,7 @@ export function LoginPage() {
       login(email, password),
     onSuccess: (response) => {
       queryClient.setQueryData(authKeys.currentUser, response.data.user)
-      void queryClient.prefetchQuery({
-        queryKey: authKeys.workspaces,
-        queryFn: getCurrentWorkspaces,
-      })
+      void queryClient.prefetchQuery(workspacesQueryOptions)
       navigate(returnTo ?? '/', { replace: true })
     },
   })

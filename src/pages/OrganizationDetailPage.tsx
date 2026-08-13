@@ -8,7 +8,7 @@ import { SubmitButton } from '../components/SubmitButton.tsx'
 import { fieldError, formError } from '../features/auth/validation.ts'
 import { organizationInput } from '../lib/organizationForm.ts'
 import {
-  getOrganization,
+  findCachedOrganization,
   inviteOrganizationAdministrator,
   organizationKeys,
   updateOrganization,
@@ -17,6 +17,7 @@ import {
   type Organization,
 } from '../lib/organizations.ts'
 import { platformKeys } from '../lib/platform.ts'
+import { organizationDetailQueryOptions } from '../lib/queryOptions.ts'
 
 function StatusConfirmation({
   organization,
@@ -80,10 +81,10 @@ export function OrganizationDetailPage() {
   const queryClient = useQueryClient()
   const [confirmingStatus, setConfirmingStatus] = useState(false)
   const organization = useQuery({
-    queryKey: organizationKeys.detail(organizationId),
-    queryFn: () => getOrganization(organizationId),
+    ...organizationDetailQueryOptions(organizationId),
     enabled: Boolean(organizationId),
-    retry: false,
+    // Listeraden har samme form som detaljen, så tittelen males med én gang.
+    placeholderData: () => findCachedOrganization(queryClient, organizationId),
   })
   const update = useMutation({
     mutationFn: (input: Parameters<typeof updateOrganization>[1]) =>
@@ -187,132 +188,148 @@ export function OrganizationDetailPage() {
         </FeedbackBanner>
       ) : null}
 
-      <section
-        className="settings-card"
-        aria-labelledby="label-profile-heading"
-      >
-        <div className="settings-card__heading">
-          <h2 id="label-profile-heading">Labelprofil</h2>
-          <p>Offentlig ID: {current.id}</p>
-        </div>
-        <ImageUploadField
-          canManage
-          description="Labelens logo vises i arbeidsområdet. Kvadratisk format fungerer best."
-          label="Labellogo"
-          media={current.profile.logo_media}
-          ownerId={current.id}
-          ownerType="organization"
-          onAttach={attachLogo}
-          onUpload={uploadLogo}
-        />
-        <Form className="form-stack" method="post" onSubmit={handleSubmit}>
-          <OrganizationFormFields
-            values={current.profile}
-            errors={{
-              name: fieldError(update.error, 'name'),
-              legal_name: fieldError(update.error, 'legal_name'),
-              description: fieldError(update.error, 'description'),
-              website_url: fieldError(update.error, 'website_url'),
-            }}
-          />
-          <SubmitButton pending={update.isPending} pendingLabel="Lagrer …">
-            Lagre korrigeringer
-          </SubmitButton>
-        </Form>
-      </section>
-
-      <section className="settings-card" aria-labelledby="first-admin-heading">
-        <div className="settings-card__heading">
-          <h2 id="first-admin-heading">Inviter flere labeladministratorer</h2>
-          <p>
-            Mottakeren får en tidsbegrenset e-postlenke og blir Label Admin når
-            invitasjonen godtas.
-          </p>
-        </div>
-        {invitation.isSuccess ? (
-          <FeedbackBanner title="Invitasjonen er sendt" tone="success">
-            {invitation.data.email} kan godta invitasjonen frem til{' '}
-            {new Intl.DateTimeFormat('nb-NO', {
-              dateStyle: 'medium',
-              timeStyle: 'short',
-            }).format(new Date(invitation.data.expires_at))}
-            .
-          </FeedbackBanner>
-        ) : null}
-        {invitation.isError ? (
-          <FeedbackBanner title="Kunne ikke sende invitasjonen" tone="error">
-            {formError(invitation.error)}
-          </FeedbackBanner>
-        ) : null}
-        <Form
-          className="form-stack"
-          method="post"
-          onSubmit={handleInvitationSubmit}
-        >
-          <div className="form-field">
-            <label htmlFor="administrator-email">Administratorens e-post</label>
-            <input
-              autoComplete="email"
-              id="administrator-email"
-              name="email"
-              required
-              type="email"
-            />
-          </div>
-          <button
-            className="button button--primary"
-            disabled={invitation.isPending}
-            type="submit"
+      {organization.isPlaceholderData ? (
+        <p aria-live="polite">Henter label …</p>
+      ) : (
+        <>
+          <section
+            className="settings-card"
+            aria-labelledby="label-profile-heading"
           >
-            {invitation.isPending
-              ? 'Sender invitasjon …'
-              : 'Inviter som Label Admin'}
-          </button>
-        </Form>
-      </section>
+            <div className="settings-card__heading">
+              <h2 id="label-profile-heading">Labelprofil</h2>
+              <p>Offentlig ID: {current.id}</p>
+            </div>
+            <ImageUploadField
+              canManage
+              description="Labelens logo vises i arbeidsområdet. Kvadratisk format fungerer best."
+              label="Labellogo"
+              media={current.profile.logo_media}
+              ownerId={current.id}
+              ownerType="organization"
+              onAttach={attachLogo}
+              onUpload={uploadLogo}
+            />
+            <Form className="form-stack" method="post" onSubmit={handleSubmit}>
+              <OrganizationFormFields
+                values={current.profile}
+                errors={{
+                  name: fieldError(update.error, 'name'),
+                  legal_name: fieldError(update.error, 'legal_name'),
+                  description: fieldError(update.error, 'description'),
+                  website_url: fieldError(update.error, 'website_url'),
+                }}
+              />
+              <SubmitButton pending={update.isPending} pendingLabel="Lagrer …">
+                Lagre korrigeringer
+              </SubmitButton>
+            </Form>
+          </section>
 
-      <section
-        className={`settings-card${current.status === 'active' ? ' settings-card--danger' : ''}`}
-        aria-labelledby="label-status-heading"
-      >
-        <div className="settings-card__heading settings-card__heading--row">
-          <div>
-            <h2 id="label-status-heading">Tilgangsstatus</h2>
-            <p>
-              {current.status === 'active'
-                ? 'Suspender labelen hvis tilgangen må stoppes umiddelbart.'
-                : 'Godkjenn og aktiver labelen når tilgangen kan gjenåpnes.'}
-            </p>
-          </div>
-          {!confirmingStatus ? (
-            <button
-              className={
-                current.status === 'active'
-                  ? 'button button--danger-quiet'
-                  : 'button button--primary'
-              }
-              onClick={() => setConfirmingStatus(true)}
-              type="button"
+          <section
+            className="settings-card"
+            aria-labelledby="first-admin-heading"
+          >
+            <div className="settings-card__heading">
+              <h2 id="first-admin-heading">
+                Inviter flere labeladministratorer
+              </h2>
+              <p>
+                Mottakeren får en tidsbegrenset e-postlenke og blir Label Admin
+                når invitasjonen godtas.
+              </p>
+            </div>
+            {invitation.isSuccess ? (
+              <FeedbackBanner title="Invitasjonen er sendt" tone="success">
+                {invitation.data.email} kan godta invitasjonen frem til{' '}
+                {new Intl.DateTimeFormat('nb-NO', {
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                }).format(new Date(invitation.data.expires_at))}
+                .
+              </FeedbackBanner>
+            ) : null}
+            {invitation.isError ? (
+              <FeedbackBanner
+                title="Kunne ikke sende invitasjonen"
+                tone="error"
+              >
+                {formError(invitation.error)}
+              </FeedbackBanner>
+            ) : null}
+            <Form
+              className="form-stack"
+              method="post"
+              onSubmit={handleInvitationSubmit}
             >
-              {current.status === 'active'
-                ? 'Suspender label'
-                : 'Godkjenn og aktiver'}
-            </button>
-          ) : null}
-        </div>
-        {confirmingStatus ? (
-          <StatusConfirmation
-            organization={current}
-            pending={status.isPending}
-            onCancel={() => setConfirmingStatus(false)}
-            onConfirm={() =>
-              status.mutate(
-                current.status === 'active' ? 'suspended' : 'active',
-              )
-            }
-          />
-        ) : null}
-      </section>
+              <div className="form-field">
+                <label htmlFor="administrator-email">
+                  Administratorens e-post
+                </label>
+                <input
+                  autoComplete="email"
+                  id="administrator-email"
+                  name="email"
+                  required
+                  type="email"
+                />
+              </div>
+              <button
+                className="button button--primary"
+                disabled={invitation.isPending}
+                type="submit"
+              >
+                {invitation.isPending
+                  ? 'Sender invitasjon …'
+                  : 'Inviter som Label Admin'}
+              </button>
+            </Form>
+          </section>
+
+          <section
+            className={`settings-card${current.status === 'active' ? ' settings-card--danger' : ''}`}
+            aria-labelledby="label-status-heading"
+          >
+            <div className="settings-card__heading settings-card__heading--row">
+              <div>
+                <h2 id="label-status-heading">Tilgangsstatus</h2>
+                <p>
+                  {current.status === 'active'
+                    ? 'Suspender labelen hvis tilgangen må stoppes umiddelbart.'
+                    : 'Godkjenn og aktiver labelen når tilgangen kan gjenåpnes.'}
+                </p>
+              </div>
+              {!confirmingStatus ? (
+                <button
+                  className={
+                    current.status === 'active'
+                      ? 'button button--danger-quiet'
+                      : 'button button--primary'
+                  }
+                  onClick={() => setConfirmingStatus(true)}
+                  type="button"
+                >
+                  {current.status === 'active'
+                    ? 'Suspender label'
+                    : 'Godkjenn og aktiver'}
+                </button>
+              ) : null}
+            </div>
+            {confirmingStatus ? (
+              <StatusConfirmation
+                organization={current}
+                pending={status.isPending}
+                onCancel={() => setConfirmingStatus(false)}
+                onConfirm={() =>
+                  status.mutate(
+                    current.status === 'active' ? 'suspended' : 'active',
+                  )
+                }
+              />
+            ) : null}
+          </section>
+        </>
+      )}
 
       <Link className="resource-back-link" to="/labels">
         Tilbake til alle labels

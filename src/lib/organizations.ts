@@ -1,3 +1,4 @@
+import { type QueryClient } from '@tanstack/react-query'
 import { apiRequest } from './api.ts'
 import type { CursorPagination } from './platformSearch.ts'
 import type { MediaReference } from './media.ts'
@@ -77,6 +78,7 @@ export const organizationKeys = {
 
 export async function getOrganizations(
   cursor: { after?: string; before?: string } = {},
+  signal?: AbortSignal,
 ): Promise<OrganizationPage> {
   const params = new URLSearchParams({ 'page[size]': '25' })
   if (cursor.after) params.set('page[after]', cursor.after)
@@ -84,6 +86,7 @@ export async function getOrganizations(
 
   const response = await apiRequest<Organization[]>(
     `/api/v1/organizations?${params.toString()}`,
+    { signal },
   )
   const meta = response.meta as OrganizationPaginationMeta | undefined
 
@@ -98,10 +101,27 @@ export async function getOrganizations(
   }
 }
 
-export function getOrganization(organizationId: string) {
-  return apiRequest<Organization>(
-    `/api/v1/organizations/${organizationId}`,
-  ).then((response) => response.data)
+export function getOrganization(organizationId: string, signal?: AbortSignal) {
+  return apiRequest<Organization>(`/api/v1/organizations/${organizationId}`, {
+    signal,
+  }).then((response) => response.data)
+}
+
+/** Samme form i listen som i detaljen — se `findCachedArtist`. */
+export function findCachedOrganization(
+  client: QueryClient,
+  organizationId: string,
+): Organization | undefined {
+  for (const [, page] of client.getQueriesData<OrganizationPage>({
+    queryKey: organizationKeys.lists(),
+  })) {
+    const organization = page?.data.find(
+      (candidate) => candidate.id === organizationId,
+    )
+    if (organization) return organization
+  }
+
+  return undefined
 }
 
 export function createOrganization(input: OrganizationInput) {

@@ -1,12 +1,53 @@
+import { type QueryClient } from '@tanstack/react-query'
 import { apiRequest } from './api.ts'
 import type { MediaReference } from './media.ts'
 import type { CursorPagination } from './platformSearch.ts'
+
+export type ReleaseStatus =
+  | 'draft'
+  | 'review'
+  | 'scheduled'
+  | 'published'
+  | 'unpublished'
+  | 'archived'
+
+/**
+ * Laravel sender denne blokken per utgivelse. Den uttrykker rollekapabilitet,
+ * ikke tilstandsmaskin-gyldighet: `can_submit` betyr at brukeren har lov til å
+ * sende inn, ikke at utgivelsen er komplett nok — API-et kan fortsatt svare 422.
+ *
+ * Rettigheter skal aldri utledes fra rolle eller redaktørlista i portalen, og
+ * blokken hører til én utgivelse. Den må derfor ikke gjenbrukes på tvers.
+ */
+export interface ReleasePermissions {
+  can_update: boolean
+  can_submit: boolean
+  can_delete: boolean
+  can_approve: boolean
+  can_publish: boolean
+  can_manage_editors: boolean
+}
+
+export interface ReleaseEditor {
+  user_id: string
+  display_name: string | null
+}
+
+export interface ReleaseLifecycle {
+  submitted_at: string | null
+  approved_at: string | null
+  scheduled_for: string | null
+  published_at: string | null
+  unpublished_at: string | null
+  archived_at: string | null
+  publication_version: number
+}
 
 export interface ReleaseSummary {
   id: string
   owner: { type: 'organization' | 'artist'; id: string }
   type: string
-  status: string
+  status: ReleaseStatus
   title: string
   subtitle: string | null
   release_date: string | null
@@ -18,7 +59,10 @@ export interface ReleaseSummary {
     is_primary: boolean
     position: number
   }>
+  editors: ReleaseEditor[]
+  /** @deprecated Bruk `editors`. Feltet finnes fortsatt i svaret fra Laravel. */
   editor_user_ids: string[]
+  permissions: ReleasePermissions
   created_at: string
   updated_at: string
 }
@@ -26,6 +70,7 @@ export interface ReleaseSummary {
 export interface Release extends ReleaseSummary {
   description: string | null
   upc: string | null
+  lifecycle?: ReleaseLifecycle
   pages?: ReleaseContentPage[]
 }
 
@@ -77,11 +122,34 @@ export interface ReleasePage {
 
 export interface ReleaseListFilters {
   artist_id?: string
+  assigned_to_me?: boolean
   owner_id?: string
   owner_type?: 'organization' | 'artist'
   search?: string
   status?: string
   type?: string
+}
+
+const releaseStatusLabels: Record<ReleaseStatus, string> = {
+  draft: 'Utkast',
+  review: 'Til vurdering',
+  scheduled: 'Planlagt',
+  published: 'Publisert',
+  unpublished: 'Avpublisert',
+  archived: 'Arkivert',
+}
+
+export function releaseStatusLabel(status: string) {
+  return releaseStatusLabels[status as ReleaseStatus] ?? status
+}
+
+/**
+ * Laravel tillater bare skriving mens utgivelsen er et utkast eller avpublisert.
+ * Statusen brukes ikke til å avgjøre om brukeren *får* redigere — det gjør
+ * `permissions.can_update` — men til å forklare hvorfor når svaret er nei.
+ */
+export function isEditableReleaseStatus(status: string) {
+  return status === 'draft' || status === 'unpublished'
 }
 
 export interface ReleaseMetadataInput {
@@ -140,6 +208,7 @@ export const releaseKeys = {
 export async function getReleases(
   cursor: { after?: string; before?: string } = {},
   filters: ReleaseListFilters = {},
+  signal?: AbortSignal,
 ): Promise<ReleasePage> {
   const params = new URLSearchParams({ 'page[size]': '25' })
   if (cursor.after) params.set('page[after]', cursor.after)
@@ -151,8 +220,12 @@ export async function getReleases(
     params.set('filter[search]', filters.search.trim())
   if (filters.status) params.set('filter[status]', filters.status)
   if (filters.type) params.set('filter[type]', filters.type)
+  // Serverside tildelingsfilter. Listen er markørpaginert, så klientside-
+  // filtrering på `permissions.can_update` kunne gitt helt tomme sider.
+  if (filters.assigned_to_me) params.set('filter[assigned_to_me]', '1')
   const response = await apiRequest<ReleaseSummary[]>(
     `/api/v1/releases?${params.toString()}`,
+    { signal },
   )
   const meta = response.meta as ReleasePaginationMeta | undefined
 
@@ -167,10 +240,43 @@ export async function getReleases(
   }
 }
 
-export function getRelease(releaseId: string) {
-  return apiRequest<Release>(`/api/v1/releases/${releaseId}`).then(
+export function getRelease(releaseId: string, signal?: AbortSignal) {
+  return apiRequest<Release>(`/api/v1/releases/${releaseId}`, { signal }).then(
     (response) => response.data,
   )
+}
+
+/**
+ * Listeraden inneholder allerede tittel, artister, status, eier og omslag, så
+ * detaljsiden kan male toppen umiddelbart i stedet for å vente på en rundtur.
+ * `description` og `upc` finnes ikke i sammendraget: de mates til ukontrollerte
+ * skjemafelt, og siden skjuler derfor de redigerbare seksjonene til ekte data
+ * har landet (`isPlaceholderData`). Verdiene her er ren typeutfylling.
+ */
+export function findCachedReleaseSummary(
+  client: QueryClient,
+  releaseId: string,
+): Release | undefined {
+  for (const [, page] of client.getQueriesData<ReleasePage>({
+    queryKey: releaseKeys.lists(),
+  })) {
+    const summary = page?.data.find((release) => release.id === releaseId)
+    if (summary) return { ...summary, description: null, upc: null }
+  }
+
+  return undefined
+}
+
+/**
+ * Skrivesvarene fra Laravel er typet med `pages` som valgfri. Erstattes hele
+ * cache-oppføringen, forsvinner sider og blokker fra sideredigereren dersom
+ * svaret utelater dem. Derfor merges det inn i stedet.
+ */
+export function mergeReleaseDetail(updated: Release) {
+  return (previous: Release | undefined): Release =>
+    previous
+      ? { ...previous, ...updated, pages: updated.pages ?? previous.pages }
+      : updated
 }
 
 export function createRelease(input: CreateReleaseInput) {
@@ -213,6 +319,76 @@ export function removeReleaseArtist(releaseId: string, artistId: string) {
     `/api/v1/releases/${releaseId}/artists/${artistId}`,
     { method: 'DELETE' },
   ).then((response) => response.data)
+}
+
+export function deleteRelease(releaseId: string) {
+  return apiRequest<{ message: string }>(`/api/v1/releases/${releaseId}`, {
+    method: 'DELETE',
+  }).then((response) => response.data)
+}
+
+/**
+ * `userId` er brukerens ULID (`user.id` i medlemslista), ikke medlemskapets id.
+ *
+ * Laravel svarer 201 på en ny tildeling, som også sender e-post til brukeren,
+ * og 200 når tildelingen allerede fantes. Begge er suksess, og API-klienten
+ * skiller ikke på statuskoden.
+ */
+export function assignReleaseEditor(releaseId: string, userId: string) {
+  return apiRequest<{ user_id: string }>(
+    `/api/v1/releases/${releaseId}/editors`,
+    { method: 'POST', body: JSON.stringify({ user_id: userId }) },
+  ).then((response) => response.data)
+}
+
+export function removeReleaseEditor(releaseId: string, userId: string) {
+  return apiRequest<{ message: string }>(
+    `/api/v1/releases/${releaseId}/editors/${userId}`,
+    { method: 'DELETE' },
+  ).then((response) => response.data)
+}
+
+export function submitRelease(releaseId: string, note: string | null = null) {
+  return apiRequest<{ approval_request_id: string; status: string }>(
+    `/api/v1/releases/${releaseId}/submit`,
+    { method: 'POST', body: JSON.stringify({ note }) },
+  ).then((response) => response.data)
+}
+
+export function decideRelease(
+  releaseId: string,
+  approve: boolean,
+  note: string | null = null,
+) {
+  return apiRequest<Release>(
+    `/api/v1/releases/${releaseId}/${approve ? 'approve' : 'reject'}`,
+    { method: 'POST', body: JSON.stringify({ note }) },
+  ).then((response) => response.data)
+}
+
+export function scheduleRelease(releaseId: string, publishAt: string) {
+  return apiRequest<Release>(`/api/v1/releases/${releaseId}/schedule`, {
+    method: 'POST',
+    body: JSON.stringify({ publish_at: publishAt }),
+  }).then((response) => response.data)
+}
+
+export function publishRelease(releaseId: string) {
+  return apiRequest<Release>(`/api/v1/releases/${releaseId}/publish`, {
+    method: 'POST',
+  }).then((response) => response.data)
+}
+
+export function unpublishRelease(releaseId: string) {
+  return apiRequest<Release>(`/api/v1/releases/${releaseId}/unpublish`, {
+    method: 'POST',
+  }).then((response) => response.data)
+}
+
+export function archiveRelease(releaseId: string) {
+  return apiRequest<Release>(`/api/v1/releases/${releaseId}/archive`, {
+    method: 'POST',
+  }).then((response) => response.data)
 }
 
 export function createReleasePage(releaseId: string, input: ReleasePageInput) {

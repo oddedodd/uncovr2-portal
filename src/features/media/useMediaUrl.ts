@@ -2,6 +2,11 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { mediaDownloadQueryOptions } from '../../lib/media.ts'
 
+/**
+ * Medieoppslag får ikke videresendt AbortSignal: flere komponenter deler én
+ * batchet POST, så en avbrutt montering ville revet forespørselen vekk under
+ * de andre som venter på den samme.
+ */
 export function useMediaUrl(mediaId: string | null | undefined) {
   const query = useQuery({
     ...mediaDownloadQueryOptions(mediaId ?? ''),

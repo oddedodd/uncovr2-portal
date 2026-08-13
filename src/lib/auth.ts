@@ -126,14 +126,16 @@ export function resetPassword(input: {
   )
 }
 
-export function getCurrentUser() {
-  return apiRequest<CurrentUser>('/api/v1/me').then((response) => response.data)
+export function getCurrentUser(signal?: AbortSignal) {
+  return apiRequest<CurrentUser>('/api/v1/me', { signal }).then(
+    (response) => response.data,
+  )
 }
 
-export function getCurrentWorkspaces() {
-  return apiRequest<WorkspacesResponse>('/api/v1/me/workspaces').then(
-    (response) => response.data.workspaces,
-  )
+export function getCurrentWorkspaces(signal?: AbortSignal) {
+  return apiRequest<WorkspacesResponse>('/api/v1/me/workspaces', {
+    signal,
+  }).then((response) => response.data.workspaces)
 }
 
 export function updateCurrentUser(displayName: string) {
@@ -143,10 +145,10 @@ export function updateCurrentUser(displayName: string) {
   }).then((response) => response.data)
 }
 
-export function getSessions() {
-  return apiRequest<{ sessions: DeviceSession[] }>('/api/v1/me/sessions').then(
-    (response) => response.data.sessions,
-  )
+export function getSessions(signal?: AbortSignal) {
+  return apiRequest<{ sessions: DeviceSession[] }>('/api/v1/me/sessions', {
+    signal,
+  }).then((response) => response.data.sessions)
 }
 
 export function revokeSession(sessionId: string) {
