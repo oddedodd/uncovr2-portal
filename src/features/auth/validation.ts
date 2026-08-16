@@ -28,6 +28,16 @@ export function validationMessages(error: unknown): string[] {
   return Object.values(details?.fields ?? {}).flat()
 }
 
+/**
+ * For handlinger uten et skjemafelt å feste feilen på er feltmeldingene den
+ * eneste forklaringen brukeren får. Toppmeldingen brukes bare når 422-svaret
+ * ikke har noen — eller når feilen ikke er en validering i det hele tatt.
+ */
+export function actionError(error: unknown): string | undefined {
+  const messages = validationMessages(error)
+  return messages.length > 0 ? messages.join(' ') : formError(error)
+}
+
 export function formError(error: unknown): string | undefined {
   if (!error) return undefined
   if (error instanceof ApiError) {

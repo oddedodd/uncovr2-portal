@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Form, useNavigate } from 'react-router'
-import { formError, validationMessages } from '../features/auth/validation.ts'
+import { actionError } from '../features/auth/validation.ts'
 import {
   archiveRelease,
   decideRelease,
@@ -17,17 +17,6 @@ import {
 } from '../lib/releases.ts'
 import { FeedbackBanner } from './FeedbackBanner.tsx'
 import { SubmitButton } from './SubmitButton.tsx'
-
-/**
- * Laravel avviser ugyldige overganger med 422 selv når rettigheten er på plass.
- * Den generiske toppmeldingen sier ingenting, så feltmeldingene vises i stedet
- * — det er de som forteller at et omslag mangler eller at godkjenningen er
- * utdatert.
- */
-function actionError(error: unknown) {
-  const messages = validationMessages(error)
-  return messages.length > 0 ? messages.join(' ') : formError(error)
-}
 
 export function ReleaseActionsPanel({ release }: { release: Release }) {
   const queryClient = useQueryClient()

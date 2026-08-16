@@ -398,6 +398,22 @@ export function createReleasePage(releaseId: string, input: ReleasePageInput) {
   }).then((response) => response.data)
 }
 
+/**
+ * Rekkefølgen settes som en hel permutasjon i ett kall. Laravel renummererer
+ * sidene sammenhengende 1..n i én transaksjon og svarer med hele lista, så
+ * flerstegsflytt aldri etterlater en halvskrevet rekkefølge.
+ *
+ * En delvis liste avvises med 422 på `page_ids`. Det betyr at portalens liste
+ * er utdatert — typisk at noen andre har lagt til en side — og skal håndteres
+ * ved å hente utgivelsen på nytt, ikke som en brukerfeil.
+ */
+export function reorderReleasePages(releaseId: string, pageIds: string[]) {
+  return apiRequest<ReleaseContentPage[]>(
+    `/api/v1/releases/${releaseId}/pages/order`,
+    { method: 'PUT', body: JSON.stringify({ page_ids: pageIds }) },
+  ).then((response) => response.data)
+}
+
 export function updateReleasePage(
   pageId: string,
   input: Partial<ReleasePageInput>,
@@ -422,6 +438,21 @@ export function createContentBlock(
     method: 'POST',
     body: JSON.stringify(input),
   }).then((response) => response.data)
+}
+
+/**
+ * Samme kontrakt som for sider: hele rekkefølgen i ett kall, renummerert 1..n i
+ * svaret, og 422 på `block_ids` når lista vår er utdatert.
+ *
+ * Rene flytt skal gå her og ikke gjennom `updateContentBlock`. En PATCH med
+ * `position` går gjennom innholdsløypa i Laravel og bumper `version` med et
+ * versjonssnapshot — en omrokering skriver bare posisjonen.
+ */
+export function reorderPageBlocks(pageId: string, blockIds: string[]) {
+  return apiRequest<ReleaseContentBlock[]>(
+    `/api/v1/pages/${pageId}/blocks/order`,
+    { method: 'PUT', body: JSON.stringify({ block_ids: blockIds }) },
+  ).then((response) => response.data)
 }
 
 export function updateContentBlock(

@@ -311,6 +311,38 @@ export const router = createBrowserRouter([
             }),
           },
           {
+            // Sidene ligger i utgivelsens detaljsvar, så begge sideruter henter
+            // den samme queryen som utgivelsessiden.
+            path: 'releases/:releaseId/pages/new',
+            loader: ({ params }) => {
+              if (params.releaseId) {
+                void queryClient.prefetchQuery(
+                  releaseDetailQueryOptions(params.releaseId),
+                )
+              }
+              return null
+            },
+            lazy: async () => ({
+              Component: (await import('../pages/CreateReleaseContentPage.tsx'))
+                .CreateReleaseContentPage,
+            }),
+          },
+          {
+            path: 'releases/:releaseId/pages/:pageId',
+            loader: ({ params }) => {
+              if (params.releaseId) {
+                void queryClient.prefetchQuery(
+                  releaseDetailQueryOptions(params.releaseId),
+                )
+              }
+              return null
+            },
+            lazy: async () => ({
+              Component: (await import('../pages/EditReleaseContentPage.tsx'))
+                .EditReleaseContentPage,
+            }),
+          },
+          {
             // Teamsiden velger label- eller artistvariant ut fra
             // arbeidsområdet, så hentingen kan ikke starte tidligere.
             path: 'team',

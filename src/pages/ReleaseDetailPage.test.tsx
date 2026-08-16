@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Outlet, RouterProvider, createMemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -12,16 +12,12 @@ import { ReleaseDetailPage } from './ReleaseDetailPage.tsx'
 const releaseMocks = vi.hoisted(() => ({
   addReleaseArtist: vi.fn(),
   assignReleaseEditor: vi.fn(),
-  createContentBlock: vi.fn(),
-  createReleasePage: vi.fn(),
-  deleteContentBlock: vi.fn(),
   deleteReleasePage: vi.fn(),
   getRelease: vi.fn(),
   removeReleaseArtist: vi.fn(),
   removeReleaseEditor: vi.fn(),
   submitRelease: vi.fn(),
-  updateContentBlock: vi.fn(),
-  updateReleasePage: vi.fn(),
+  reorderReleasePages: vi.fn(),
   updateRelease: vi.fn(),
   updateReleaseCover: vi.fn(),
 }))
@@ -186,13 +182,9 @@ beforeEach(() => {
   releaseMocks.removeReleaseEditor.mockReset()
   releaseMocks.submitRelease.mockReset()
   releaseMocks.addReleaseArtist.mockReset()
-  releaseMocks.createContentBlock.mockReset()
-  releaseMocks.createReleasePage.mockReset()
-  releaseMocks.deleteContentBlock.mockReset()
   releaseMocks.deleteReleasePage.mockReset()
   releaseMocks.removeReleaseArtist.mockReset()
-  releaseMocks.updateContentBlock.mockReset()
-  releaseMocks.updateReleasePage.mockReset()
+  releaseMocks.reorderReleasePages.mockReset()
   releaseMocks.updateRelease.mockReset()
   releaseMocks.updateReleaseCover.mockReset()
   artistMocks.getArtists.mockResolvedValue({
@@ -266,35 +258,12 @@ beforeEach(() => {
     position: 2,
   })
   releaseMocks.removeReleaseArtist.mockResolvedValue({ message: 'Removed' })
-  releaseMocks.createContentBlock.mockResolvedValue({
-    id: 'block-2',
-    position: 2,
-    type: 'text',
-    version: 1,
-    payload: { body: 'New body' },
-  })
-  releaseMocks.createReleasePage.mockResolvedValue({
-    id: 'page-3',
-    parent: { type: 'release', id: 'release-1' },
-    position: 2,
-    title: 'Credits',
-  })
-  releaseMocks.deleteContentBlock.mockResolvedValue({ message: 'Deleted' })
   releaseMocks.deleteReleasePage.mockResolvedValue({ message: 'Deleted' })
-  releaseMocks.updateContentBlock.mockResolvedValue({
-    id: 'block-1',
-    position: 1,
-    type: 'text',
-    version: 2,
-    payload: { body: 'Updated body' },
-  })
   releaseMocks.updateRelease.mockResolvedValue(release)
-  releaseMocks.updateReleasePage.mockResolvedValue({
-    id: 'page-1',
-    parent: { type: 'release', id: 'release-1' },
-    position: 1,
-    title: 'Updated story',
-  })
+  releaseMocks.reorderReleasePages.mockResolvedValue([
+    { id: 'page-3', position: 1, title: 'Credits', blocks: [] },
+    { id: 'page-1', position: 2, title: 'Story', blocks: [] },
+  ])
 })
 
 describe('ReleaseDetailPage', () => {
@@ -415,104 +384,7 @@ describe('ReleaseDetailPage', () => {
     )
   })
 
-  it('creates, edits and removes release pages', async () => {
-    const browserUser = userEvent.setup()
-    releaseMocks.getRelease.mockResolvedValue({
-      ...release,
-      permissions: editorPermissions,
-      pages: [{ id: 'page-1', position: 1, title: 'Story' }],
-    })
-
-    renderRelease()
-
-    await screen.findByDisplayValue('Story')
-    await browserUser.type(screen.getByLabelText('Ny side'), 'Credits')
-    await browserUser.click(
-      screen.getByRole('button', { name: 'Opprett side' }),
-    )
-
-    const pageTitles = screen.getAllByLabelText('Sidetittel')
-    await browserUser.clear(pageTitles[0])
-    await browserUser.type(pageTitles[0], 'Updated story')
-    await browserUser.click(
-      screen.getAllByRole('button', { name: 'Lagre side' })[0],
-    )
-    await browserUser.click(
-      screen.getAllByRole('button', { name: 'Fjern side' })[0],
-    )
-
-    expect(releaseMocks.createReleasePage).toHaveBeenCalledWith('release-1', {
-      position: 2,
-      title: 'Credits',
-    })
-    expect(releaseMocks.updateReleasePage).toHaveBeenCalledWith('page-1', {
-      position: 1,
-      title: 'Updated story',
-    })
-    expect(releaseMocks.deleteReleasePage).toHaveBeenCalledWith('page-1')
-  })
-
-  it('creates, edits and removes page content blocks', async () => {
-    const browserUser = userEvent.setup()
-    releaseMocks.getRelease.mockResolvedValue({
-      ...release,
-      permissions: editorPermissions,
-      pages: [
-        {
-          id: 'page-1',
-          position: 1,
-          title: 'Story',
-          blocks: [
-            {
-              id: 'block-1',
-              position: 1,
-              type: 'text',
-              version: 1,
-              payload: { body: 'Original body' },
-            },
-          ],
-        },
-      ],
-    })
-
-    renderRelease()
-
-    await screen.findByDisplayValue('Original body')
-    const initialTextAreas = screen.getAllByLabelText('Tekst')
-    await browserUser.type(initialTextAreas[1], 'New body')
-    await browserUser.click(
-      screen.getByRole('button', { name: 'Legg til blokk' }),
-    )
-
-    const textAreas = screen.getAllByLabelText('Tekst')
-    await browserUser.clear(textAreas[0])
-    await browserUser.type(textAreas[0], 'Updated body')
-    await browserUser.click(screen.getByRole('button', { name: 'Lagre blokk' }))
-    await browserUser.click(screen.getByRole('button', { name: 'Fjern blokk' }))
-
-    expect(releaseMocks.createContentBlock).toHaveBeenCalledWith('page-1', {
-      position: 2,
-      type: 'text',
-      payload: { body: 'New body' },
-    })
-    expect(releaseMocks.updateContentBlock).toHaveBeenCalledWith(
-      'page-1',
-      'block-1',
-      {
-        position: 1,
-        type: 'text',
-        payload: { body: 'Updated body' },
-      },
-    )
-    expect(releaseMocks.deleteContentBlock).toHaveBeenCalledWith(
-      'page-1',
-      'block-1',
-    )
-  })
-
-  it('uploads media for image content blocks', async () => {
-    const browserUser = userEvent.setup()
-    const file = new File(['image'], 'studio.png', { type: 'image/png' })
+  it('links each page to its own route', async () => {
     releaseMocks.getRelease.mockResolvedValue({
       ...release,
       permissions: editorPermissions,
@@ -521,34 +393,141 @@ describe('ReleaseDetailPage', () => {
 
     renderRelease()
 
-    await screen.findByText('Ingen blokker ennå.')
-    await browserUser.selectOptions(screen.getByLabelText('Blokktype'), 'image')
-    await browserUser.upload(screen.getByLabelText('Last opp media'), file)
-    await screen.findByText(
-      'Media er lastet opp. Lagre blokken for å bruke den.',
+    expect(
+      await screen.findByRole('link', { name: 'Rediger side: Story' }),
+    ).toHaveAttribute('href', '/releases/release-1/pages/page-1')
+    expect(screen.getByRole('link', { name: 'Ny side' })).toHaveAttribute(
+      'href',
+      '/releases/release-1/pages/new',
     )
-    await browserUser.type(screen.getByLabelText('Alternativ tekst'), 'Studio')
+    // Selve innholdet redigeres på sideruten, ikke her.
+    expect(screen.queryByLabelText('Sidetittel')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Blokktype')).not.toBeInTheDocument()
+  })
+
+  it('reorders pages by sending the whole order', async () => {
+    const browserUser = userEvent.setup()
+    releaseMocks.getRelease.mockResolvedValue({
+      ...release,
+      permissions: editorPermissions,
+      pages: [
+        { id: 'page-1', position: 1, title: 'Story', blocks: [] },
+        // Hull i posisjonene: sletting renummererer ikke server-side.
+        { id: 'page-3', position: 4, title: 'Credits', blocks: [] },
+      ],
+    })
+
+    renderRelease()
+
+    expect(
+      await screen.findByRole('button', { name: 'Flytt opp: Story' }),
+    ).toBeDisabled()
+    expect(
+      screen.getByRole('button', { name: 'Flytt ned: Credits' }),
+    ).toBeDisabled()
     await browserUser.click(
-      screen.getByRole('button', { name: 'Legg til blokk' }),
+      screen.getByRole('button', { name: 'Flytt ned: Story' }),
     )
 
-    await waitFor(() =>
-      expect(mediaMocks.uploadMedia).toHaveBeenCalledWith(
-        'organization',
-        'label-1',
-        'image',
-        file,
+    // Laravel krever en eksakt permutasjon og renummererer selv, så posisjonene
+    // regnes aldri ut her.
+    expect(releaseMocks.reorderReleasePages).toHaveBeenCalledWith('release-1', [
+      'page-3',
+      'page-1',
+    ])
+    expect(await screen.findByText('1. Credits')).toBeVisible()
+  })
+
+  it('refetches the release when the order is rejected as stale', async () => {
+    const browserUser = userEvent.setup()
+    releaseMocks.getRelease.mockResolvedValue({
+      ...release,
+      permissions: editorPermissions,
+      pages: [
+        { id: 'page-1', position: 1, title: 'Story', blocks: [] },
+        { id: 'page-2', position: 2, title: 'Credits', blocks: [] },
+      ],
+    })
+    releaseMocks.reorderReleasePages.mockRejectedValue(
+      new ApiError(
+        422,
+        'validation_failed',
+        'The submitted data is invalid.',
+        'request-3',
+        {
+          fields: {
+            page_ids: [
+              'The order must list every page in the release exactly once.',
+            ],
+          },
+        },
       ),
     )
-    expect(releaseMocks.createContentBlock).toHaveBeenCalledWith('page-1', {
-      position: 1,
-      type: 'image',
-      payload: {
-        media_id: 'media-1',
-        alt_text: 'Studio',
-        caption: null,
-      },
+
+    renderRelease()
+
+    await browserUser.click(
+      await screen.findByRole('button', { name: 'Flytt ned: Story' }),
+    )
+
+    // En avvist rekkefølge betyr at lista vår er utdatert, ikke at brukeren
+    // gjorde noe feil.
+    expect(
+      await screen.findByText(
+        'Sidene ble endret et annet sted mens du jobbet. Lista er hentet på nytt — prøv flyttingen på nytt.',
+      ),
+    ).toBeVisible()
+    expect(releaseMocks.getRelease).toHaveBeenCalledTimes(2)
+  })
+
+  it('removes a page only after the deletion is confirmed', async () => {
+    const browserUser = userEvent.setup()
+    releaseMocks.getRelease.mockResolvedValue({
+      ...release,
+      permissions: editorPermissions,
+      pages: [{ id: 'page-1', position: 1, title: 'Story', blocks: [] }],
     })
+
+    renderRelease()
+
+    await browserUser.click(
+      await screen.findByRole('button', { name: 'Fjern side: Story' }),
+    )
+
+    expect(
+      screen.getByText(
+        'Siden og alle blokkene på den slettes permanent. Dette kan ikke angres.',
+      ),
+    ).toBeVisible()
+    expect(releaseMocks.deleteReleasePage).not.toHaveBeenCalled()
+
+    await browserUser.click(
+      screen.getByRole('button', { name: 'Bekreft sletting' }),
+    )
+
+    expect(releaseMocks.deleteReleasePage).toHaveBeenCalledWith('page-1')
+  })
+
+  it('keeps page management out of a read-only release', async () => {
+    releaseMocks.getRelease.mockResolvedValue({
+      ...release,
+      pages: [{ id: 'page-1', position: 1, title: 'Story', blocks: [] }],
+    })
+
+    renderRelease()
+
+    expect(
+      await screen.findByRole('link', { name: 'Åpne side: Story' }),
+    ).toHaveAttribute('href', '/releases/release-1/pages/page-1')
+    expect(
+      screen.queryByRole('button', { name: 'Flytt ned: Story' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Fjern side: Story' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: 'Ny side' }),
+    ).not.toBeInTheDocument()
   })
 
   it('keeps Artist User from editing unassigned artist releases', async () => {
